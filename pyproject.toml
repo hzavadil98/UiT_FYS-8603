@@ -1,0 +1,17 @@
+[project]
+name = "fys-8603"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "matplotlib>=3.10.0",
+    "numpy>=2.2.2",
+    "pandas>=2.2.3",
+    "pydicom>=3.0.1",
+    "pytorch-lightning>=2.5.0.post0",
+    "ruff>=0.9.6",
+    "torch>=2.6.0",
+    "torchvision>=0.21.0",
+    "wandb>=0.19.6",
+]
