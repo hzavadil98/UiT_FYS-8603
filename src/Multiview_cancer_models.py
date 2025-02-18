@@ -1,8 +1,4 @@
-import os
-import pickle
-
 import matplotlib.pyplot as plt
-import numpy as np
 import pytorch_lightning as pl
 import seaborn as sns
 import torch as th
@@ -12,7 +8,6 @@ import wandb
 from pytorch_lightning.utilities import rank_zero_only
 from torchmetrics.classification import (Accuracy, F1Score,
                                          MulticlassConfusionMatrix)
-from torchvision.models import ResNet18_Weights
 
 
 class Breast_backbone(pl.LightningModule):
@@ -60,7 +55,7 @@ class Breast_backbone(pl.LightningModule):
         # Reset confusion matrix if it was used before
         if self.confusion_matrix is not None:
             self.confusion_matrix.reset()
-        
+
         # Compute confusion matrix
         cm = self.confusion_matrix.compute().cpu().numpy()
 
@@ -75,18 +70,17 @@ class Breast_backbone(pl.LightningModule):
         wandb.log({"confusion_matrix": wandb.Image(fig)})
         plt.close(fig)
 
-        
-        
-    
+
 class Four_view_two_branch_model(Breast_backbone):
-    def __init__(self, num_class, drop = 0.3, learning_rate=1e-3):
+    def __init__(self, num_class, drop=0.3, learning_rate=1e-3):
         super(Four_view_two_branch_model, self).__init__(num_class, learning_rate)
 
         # Define 4 separate internal resnets separate for each view image
-        self.resnets = nn.ModuleList([models.resnet18(weights = 'DEFAULT') for _ in range(4)])
+        self.resnets = nn.ModuleList(
+            [models.resnet18(weights="DEFAULT") for _ in range(4)]
+        )
         for resnet in self.resnets:
             resnet.fc = nn.Identity()
-        
 
         self.fc_left = nn.Sequential(
             nn.Linear(1024, 128),
@@ -112,7 +106,7 @@ class Four_view_two_branch_model(Breast_backbone):
         out_right = self.fc_right(x_right)
 
         return out_left, out_right
-    
+
     def compute_branch_metrics(self, y_left, y_right, y, prefix: str = None):
         # compute separate metrics for each branch
         loss_left, f1_left, acc_left = self.compute_metrics(y_left, y[0])
@@ -124,7 +118,7 @@ class Four_view_two_branch_model(Breast_backbone):
         y_left_pred = th.argmax(y_left, dim=1)
         y_right_pred = th.argmax(y_right, dim=1)
         # keeps the logits of the branch with the higher target value - if both branches predict the same score, the right branch is chosen
-        worse_pred = th.where(y_left_pred > y_right_pred, y_left, y_right)        
+        worse_pred = th.where(y_left_pred > y_right_pred, y_left, y_right)
         # computes the metrics for the worse predicted case
         loss_overall, f1_overall, acc_overall = self.compute_metrics(worse_pred, y_max)
         metrics = {
@@ -137,7 +131,7 @@ class Four_view_two_branch_model(Breast_backbone):
             "f1_overall": f1_overall,
             "acc_left": acc_left,
             "acc_right": acc_right,
-            "acc_overall": acc_overall
+            "acc_overall": acc_overall,
         }
         if prefix is not None:
             metrics = {prefix + key: value for key, value in metrics.items()}
@@ -146,29 +140,29 @@ class Four_view_two_branch_model(Breast_backbone):
     def training_step(self, batch, batch_idx):
         x, y = batch
         y_left, y_right = self.forward(x)
-        loss, metrics  = self.compute_branch_metrics(y_left, y_right, y, prefix = 'train_')
+        loss, metrics = self.compute_branch_metrics(y_left, y_right, y, prefix="train_")
         self.log_dict(metrics, sync_dist=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
         y_left, y_right = self.forward(x)
-        loss, metrics  = self.compute_branch_metrics(y_left, y_right, y, prefix = 'val_')
+        loss, metrics = self.compute_branch_metrics(y_left, y_right, y, prefix="val_")
         self.log_dict(metrics, sync_dist=True)
         return loss
 
     def test_step(self, batch, batch_idx):
         x, y = batch
         y_left, y_right = self.forward(x)
-        loss, metrics  = self.compute_branch_metrics(y_left, y_right, y, prefix = 'test_')
+        loss, metrics = self.compute_branch_metrics(y_left, y_right, y, prefix="test_")
         self.log_dict(metrics, sync_dist=True)
-        
+
         y_max = th.max(y[0], y[1], dim=1).values
-        y_left_pred = th.argmax(y_left, dim = 1)
-        y_right_pred = th.argmax(y_right, dim = 1)
+        y_left_pred = th.argmax(y_left, dim=1)
+        y_right_pred = th.argmax(y_right, dim=1)
         # keeps the logits of the branch with the higher target value
         worse_pred = th.where(y_left_pred > y_right_pred, y_left_pred, y_right_pred)
-        
+
         self.test_pred.extend(worse_pred.cpu().numpy())
         self.confusion_matrix.update(worse_pred, y_max)
         return loss

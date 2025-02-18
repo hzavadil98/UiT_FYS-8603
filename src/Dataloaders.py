@@ -108,9 +108,11 @@ class Patient_Cancer_Dataset(Dataset):
     def plot(self, idx):
         images, labels = self.__getitem__(idx)
         # Transform images to the interval (0, 1)
-        images = [(image - image.min()) / (image.max() - image.min()) for image in images]
+        images = [
+            (image - image.min()) / (image.max() - image.min()) for image in images
+        ]
         fig, axs = plt.subplots(2, 2)
-        
+
         for i in range(2):
             for j in range(2):
                 axs[i, j].imshow(images[i * 2 + j].permute(1, 2, 0))
