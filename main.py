@@ -8,6 +8,7 @@ def check_dataloader_passes_model(dataloader, model):
     y_left, y_right = model.forward(x)
     
     print(f"data passed ok, outputs: {y_left.shape}, {y_right.shape}")
+    
     return 0
 
 
@@ -16,7 +17,6 @@ def main():
         root_folder="/Users/jazav7774/Library/CloudStorage/OneDrive-UiTOffice365/Data/Mammo/",
         annotation_csv="modified_breast-level_annotations.csv",
         imagefolder_path="New_512",
-        
         
         batch_size=32,
         num_workers=4,
