@@ -1,6 +1,10 @@
 import pytorch_lightning as pl
 import torch
-from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
+from pytorch_lightning.callbacks import (
+    EarlyStopping,
+    LearningRateMonitor,
+    ModelCheckpoint,
+)
 from pytorch_lightning.loggers import WandbLogger
 
 import wandb
@@ -36,7 +40,7 @@ def main():
         annotation_csv="modified_breast-level_annotations.csv",
         imagefolder_path="New_512",
         batch_size=16,
-        num_workers=4,
+        num_workers=8,
     )
     # dataloader.train_dataset.plot(0)
 
@@ -55,15 +59,16 @@ def main():
         save_last=True,
     )
     lr_monitor = LearningRateMonitor(logging_interval="step")
+    early_stopping = EarlyStopping(monitor="val_loss", patience=8, mode="min")
 
     # figure out if running with mps or gpu or cpu
 
     trainer = pl.Trainer(
-        max_epochs=2,
+        max_epochs=10,
         accelerator=accelerator,
         devices=devices,
         logger=wandb_logger,
-        callbacks=[checkpoint_callback, lr_monitor],
+        callbacks=[checkpoint_callback, lr_monitor, early_stopping],
     )
 
     # Train
