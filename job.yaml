@@ -13,7 +13,7 @@ spec:
         image: "hzavadil98/cuda_conda:latest"
         resources:
           limits:
-            nvidia.com/gpu: 1
+            nvidia.com/gpu: 2
         workingDir: /storage/UiT_FYS-8603/
         command: ["python", "train_4v2b.py"]
         #command: ["pwd"]
