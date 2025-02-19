@@ -59,7 +59,7 @@ def main():
         save_last=True,
     )
     lr_monitor = LearningRateMonitor(logging_interval="step")
-    early_stopping = EarlyStopping(monitor="val_loss", patience=8, mode="min")
+    early_stopping = EarlyStopping(monitor="val_loss", patience=30, mode="min")
 
     # figure out if running with mps or gpu or cpu
 
