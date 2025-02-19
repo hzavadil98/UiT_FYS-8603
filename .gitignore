@@ -5,6 +5,10 @@ build/
 dist/
 wheels/
 *.egg-info
+wandb/
+job.yaml
+# pl model checkpoints
+checkpoints/
 
 # Virtual environments
 .venv

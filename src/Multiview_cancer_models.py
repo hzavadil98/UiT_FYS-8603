@@ -4,10 +4,10 @@ import seaborn as sns
 import torch as th
 import torch.nn as nn
 import torchvision.models as models
-import wandb
 from pytorch_lightning.utilities import rank_zero_only
-from torchmetrics.classification import (Accuracy, F1Score,
-                                         MulticlassConfusionMatrix)
+from torchmetrics.classification import Accuracy, F1Score, MulticlassConfusionMatrix
+
+import wandb
 
 
 class Breast_backbone(pl.LightningModule):
@@ -16,9 +16,7 @@ class Breast_backbone(pl.LightningModule):
 
         self.loss = nn.CrossEntropyLoss()
         self.learning_rate = learning_rate
-
-        self.max_val_f1 = 0
-        self.best_epoch = 0
+        self.save_hyperparameters()  # Stores all arguments passed to __init__
 
         self.test_pred = []  # collect predictions
         self.confusion_matrix = MulticlassConfusionMatrix(num_classes=num_class)
@@ -28,7 +26,7 @@ class Breast_backbone(pl.LightningModule):
             num_classes=num_class, average="macro", task="multiclass"
         )
 
-        self.check_path = "wandb/Weights_checkpoint.pth"
+        self.check_path = "checkpoints/best_model.ckpt"
 
     def compute_metrics(self, y_hat, y):
         y_pred = th.argmax(y_hat, dim=1)
@@ -37,18 +35,6 @@ class Breast_backbone(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = th.optim.Adam(self.parameters(), lr=self.learning_rate)
         return optimizer
-
-    def on_validation_epoch_end(self):
-        validation_f1 = self.trainer.callback_metrics["val_f1"]
-        if validation_f1 > self.max_val_f1:
-            self.max_val_f1 = validation_f1
-            th.save(self.state_dict(), self.check_path)
-            self.best_epoch = self.current_epoch
-
-    @rank_zero_only
-    def on_train_end(self):
-        print(f"Best epoch was epoch {self.best_epoch}. Loading its state.")
-        self.load_state_dict(th.load(self.check_path))
 
     @rank_zero_only
     def on_test_epoch_end(self):
@@ -74,6 +60,10 @@ class Breast_backbone(pl.LightningModule):
 class Four_view_two_branch_model(Breast_backbone):
     def __init__(self, num_class, drop=0.3, learning_rate=1e-3):
         super(Four_view_two_branch_model, self).__init__(num_class, learning_rate)
+
+        self.confusion_matrix = nn.ModuleList(
+            [MulticlassConfusionMatrix(num_classes=num_class) for _ in range(3)]
+        )
 
         # Define 4 separate internal resnets separate for each view image
         self.resnets = nn.ModuleList(
@@ -109,16 +99,19 @@ class Four_view_two_branch_model(Breast_backbone):
 
     def compute_branch_metrics(self, y_left, y_right, y, prefix: str = None):
         # compute separate metrics for each branch
-        loss_left, f1_left, acc_left = self.compute_metrics(y_left, y[0])
-        loss_right, f1_right, acc_right = self.compute_metrics(y_right, y[1])
+        loss_left, f1_left, acc_left = self.compute_metrics(y_left, y[:, 0])
+        loss_right, f1_right, acc_right = self.compute_metrics(y_right, y[:, 1])
         # loss for the optimizer
         loss = loss_left + loss_right
         # find the branch tha returns higher cancer score
-        y_max = th.max(y[0], y[1], dim=1).values
+        y_max = th.max(y, dim=1).values
         y_left_pred = th.argmax(y_left, dim=1)
         y_right_pred = th.argmax(y_right, dim=1)
+
         # keeps the logits of the branch with the higher target value - if both branches predict the same score, the right branch is chosen
-        worse_pred = th.where(y_left_pred > y_right_pred, y_left, y_right)
+        worse_pred = y_left_pred > y_right_pred
+        worse_pred = th.where(worse_pred[:, None], y_left, y_right)
+
         # computes the metrics for the worse predicted case
         loss_overall, f1_overall, acc_overall = self.compute_metrics(worse_pred, y_max)
         metrics = {
@@ -157,12 +150,35 @@ class Four_view_two_branch_model(Breast_backbone):
         loss, metrics = self.compute_branch_metrics(y_left, y_right, y, prefix="test_")
         self.log_dict(metrics, sync_dist=True)
 
-        y_max = th.max(y[0], y[1], dim=1).values
+        y_max = th.max(y, dim=1).values
         y_left_pred = th.argmax(y_left, dim=1)
         y_right_pred = th.argmax(y_right, dim=1)
         # keeps the logits of the branch with the higher target value
-        worse_pred = th.where(y_left_pred > y_right_pred, y_left_pred, y_right_pred)
+        y_worse_pred = th.maximum(y_left, y_right)
 
-        self.test_pred.extend(worse_pred.cpu().numpy())
-        self.confusion_matrix.update(worse_pred, y_max)
+        self.confusion_matrix[0].update(y_left_pred, y[:, 0])
+        self.confusion_matrix[1].update(y_right_pred, y[:, 1])
+        self.confusion_matrix[2].update(y_worse_pred, y_max)
         return loss
+
+    @rank_zero_only
+    def on_test_epoch_end(self):
+        titles = ["Left", "Right", "Overall"]
+        for i in range(len(self.confusion_matrix)):
+            # Reset confusion matrix if it was used before
+            if self.confusion_matrix[i] is not None:
+                self.confusion_matrix[i].reset()
+
+            # Compute confusion matrix
+            cm = self.confusion_matrix[i].compute().cpu().numpy()
+
+            # Plot confusion matrix
+            fig, ax = plt.subplots(figsize=(10, 10))
+            sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax)
+            ax.set_xlabel("Predicted")
+            ax.set_ylabel("True")
+            ax.set_title(titles[i] + " Confusion Matrix")
+
+            # Log confusion matrix to wandb
+            wandb.log({titles[i] + "_confusion_matrix": wandb.Image(fig)})
+            plt.close(fig)

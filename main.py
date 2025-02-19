@@ -1,3 +1,9 @@
+import pytorch_lightning as pl
+import torch
+from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
+from pytorch_lightning.loggers import WandbLogger
+
+import wandb
 from src import Four_view_two_branch_model, Patient_Cancer_Dataloader
 
 
@@ -23,8 +29,55 @@ def main():
     # dataloader.train_dataset.plot(0)
 
     model = Four_view_two_branch_model(num_class=5)
+    # check_dataloader_passes_model(dataloader, model)
 
-    check_dataloader_passes_model(dataloader, model)
+    wandb_logger = WandbLogger(project="Four_view_two_branch_model", log_model="all")
+    wandb_logger.watch(model, log="all", log_freq=100)
+
+    checkpoint_callback = ModelCheckpoint(
+        dirpath="checkpoints/",
+        filename="best_epoch-{epoch:02d}",
+        save_top_k=1,
+        monitor="val_loss",
+        mode="min",
+        save_last=True,
+    )
+    lr_monitor = LearningRateMonitor(logging_interval="step")
+
+    # figure out if running with mps or gpu or cpu
+    if torch.backends.mps.is_available():
+        accelerator = "mps"
+        devices = 1
+    elif torch.cuda.is_available():
+        accelerator = "gpu"
+        devices = -1
+    else:
+        accelerator = "cpu"
+        devices = torch.get_num_threads()
+
+    trainer = pl.Trainer(
+        max_epochs=2,
+        accelerator=accelerator,
+        devices=devices,
+        logger=wandb_logger,
+        callbacks=[checkpoint_callback, lr_monitor],
+    )
+
+    # Train
+    trainer.fit(model, dataloader)
+    # Load best weights
+    print(
+        f"Finished training, loading the best epoch: {checkpoint_callback.best_model_path}"
+    )
+    model = Four_view_two_branch_model.load_from_checkpoint(
+        checkpoint_callback.best_model_path
+    )
+    # Test
+    trainer.test(model, dataloader)
+
+    # Finish wandb run
+    wandb.finish()
+
     return 0
 
 
