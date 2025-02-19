@@ -19,8 +19,18 @@ def check_dataloader_passes_model(dataloader, model):
 
 
 def main():
+    # Recognizes if running on my mac or on the server - sets the root_folder and accelerator
+    if torch.backends.mps.is_available():
+        root_folder = "/Users/jazav7774/Library/CloudStorage/OneDrive-UiTOffice365/Data/Mammo/"
+        accelerator = "mps"
+        devices = 1
+    elif torch.cuda.is_available():
+        root_folder = '/storage/VinDR-data/'
+        accelerator = "gpu"
+        devices = torch.cuda.device_count()
+     
     dataloader = Patient_Cancer_Dataloader(
-        root_folder="/Users/jazav7774/Library/CloudStorage/OneDrive-UiTOffice365/Data/Mammo/",
+        root_folder=root_folder,
         annotation_csv="modified_breast-level_annotations.csv",
         imagefolder_path="New_512",
         batch_size=32,
@@ -45,15 +55,6 @@ def main():
     lr_monitor = LearningRateMonitor(logging_interval="step")
 
     # figure out if running with mps or gpu or cpu
-    if torch.backends.mps.is_available():
-        accelerator = "mps"
-        devices = 1
-    elif torch.cuda.is_available():
-        accelerator = "gpu"
-        devices = -1
-    else:
-        accelerator = "cpu"
-        devices = torch.get_num_threads()
 
     trainer = pl.Trainer(
         max_epochs=2,

@@ -162,13 +162,15 @@ class Four_view_two_branch_model(Breast_backbone):
         return loss
 
     @rank_zero_only
+    def on_test_epoch_start(self):
+        for i in range(len(self.confusion_matrix)):
+            # Reset confusion matrix if it was used before
+            self.confusion_matrix[i].reset()
+
+    @rank_zero_only
     def on_test_epoch_end(self):
         titles = ["Left", "Right", "Overall"]
         for i in range(len(self.confusion_matrix)):
-            # Reset confusion matrix if it was used before
-            if self.confusion_matrix[i] is not None:
-                self.confusion_matrix[i].reset()
-
             # Compute confusion matrix
             cm = self.confusion_matrix[i].compute().cpu().numpy()
 
