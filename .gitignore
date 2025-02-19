@@ -6,7 +6,8 @@ dist/
 wheels/
 *.egg-info
 wandb/
-job.yaml
+
+sync.sh
 # pl model checkpoints
 checkpoints/
 

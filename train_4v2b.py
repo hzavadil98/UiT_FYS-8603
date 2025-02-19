@@ -21,19 +21,21 @@ def check_dataloader_passes_model(dataloader, model):
 def main():
     # Recognizes if running on my mac or on the server - sets the root_folder and accelerator
     if torch.backends.mps.is_available():
-        root_folder = "/Users/jazav7774/Library/CloudStorage/OneDrive-UiTOffice365/Data/Mammo/"
+        root_folder = (
+            "/Users/jazav7774/Library/CloudStorage/OneDrive-UiTOffice365/Data/Mammo/"
+        )
         accelerator = "mps"
         devices = 1
     elif torch.cuda.is_available():
-        root_folder = '/storage/VinDR-data/'
+        root_folder = "/storage/VinDR-data/"
         accelerator = "gpu"
         devices = torch.cuda.device_count()
-     
+
     dataloader = Patient_Cancer_Dataloader(
         root_folder=root_folder,
         annotation_csv="modified_breast-level_annotations.csv",
         imagefolder_path="New_512",
-        batch_size=32,
+        batch_size=16,
         num_workers=4,
     )
     # dataloader.train_dataset.plot(0)
