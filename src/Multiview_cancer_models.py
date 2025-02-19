@@ -67,7 +67,11 @@ class Four_view_two_branch_model(Breast_backbone):
 
         # Define 4 separate internal resnets separate for each view image
         self.resnets = nn.ModuleList(
-            [models.resnet18(weights="DEFAULT") for _ in range(4)]
+            [
+                models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
+                for _ in range(4)
+            ]
+            # [models.resnet18(weights="DEFAULT") for _ in range(4)]
         )
         for resnet in self.resnets:
             resnet.fc = nn.Identity()

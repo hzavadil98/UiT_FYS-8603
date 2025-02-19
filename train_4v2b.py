@@ -44,7 +44,7 @@ def main():
     )
     # dataloader.train_dataset.plot(0)
 
-    model = Four_view_two_branch_model(num_class=5)
+    model = Four_view_two_branch_model(num_class=5, drop=0.1, learning_rate=1e-4)
     # check_dataloader_passes_model(dataloader, model)
 
     wandb_logger = WandbLogger(project="Four_view_two_branch_model", log_model="all")
