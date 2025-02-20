@@ -271,7 +271,11 @@ class Four_view_featurizers(Breast_backbone):
                 },
                 sync_dist=True,
             )
-        return metrics[0][0] + metrics[1][0] + metrics[2][0] + metrics[3][0]
+        self.log(
+            "val_loss",
+            metrics[0][0] + metrics[1][0] + metrics[2][0] + metrics[3][0],
+            sync_dist=True,
+        )
 
     def test_step(self, batch, batch_idx):
         x, y = batch
@@ -294,7 +298,6 @@ class Four_view_featurizers(Breast_backbone):
             self.confusion_matrix[i].update(
                 th.argmax(y_hat, dim=1), y[:, 0 if i < 2 else 1]
             )
-        return metrics[0][0] + metrics[1][0] + metrics[2][0] + metrics[3][0]
 
     @rank_zero_only
     def on_test_epoch_end(self):
