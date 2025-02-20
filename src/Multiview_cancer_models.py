@@ -37,6 +37,12 @@ class Breast_backbone(pl.LightningModule):
         return optimizer
 
     @rank_zero_only
+    def on_test_epoch_start(self):
+        for i in range(len(self.confusion_matrix)):
+            # Reset confusion matrix if it was used before
+            self.confusion_matrix[i].reset()
+
+    @rank_zero_only
     def on_test_epoch_end(self):
         # Reset confusion matrix if it was used before
         if self.confusion_matrix is not None:
@@ -166,12 +172,6 @@ class Four_view_two_branch_model(Breast_backbone):
         return loss
 
     @rank_zero_only
-    def on_test_epoch_start(self):
-        for i in range(len(self.confusion_matrix)):
-            # Reset confusion matrix if it was used before
-            self.confusion_matrix[i].reset()
-
-    @rank_zero_only
     def on_test_epoch_end(self):
         titles = ["Left", "Right", "Overall"]
         for i in range(len(self.confusion_matrix)):
@@ -188,3 +188,134 @@ class Four_view_two_branch_model(Breast_backbone):
             # Log confusion matrix to wandb
             wandb.log({titles[i] + "_confusion_matrix": wandb.Image(fig)})
             plt.close(fig)
+
+
+class Four_view_single_featurizer(nn.Module):
+    def __init__(self, num_class, drop=0.3):
+        super(Four_view_single_featurizer, self).__init__()
+
+        self.resnet = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
+        self.resnet.fc = nn.Identity()
+
+        self.fc = nn.Sequential(
+            nn.Linear(512, 128),
+            nn.ReLU(),
+            nn.Dropout(drop),
+            nn.Linear(128, num_class),
+        )
+
+    def forward(self, x):
+        x = self.resnet(x)
+        return self.fc(x)
+
+
+class Four_view_featurizers(Breast_backbone):
+    def __init__(self, num_class, drop=0.3, learning_rate=1e-3):
+        super(Four_view_featurizers, self).__init__(num_class, learning_rate)
+
+        self.featurizers = nn.ModuleList(
+            [Four_view_single_featurizer(num_class, drop) for _ in range(4)]
+        )
+        self.confusion_matrix = nn.ModuleList(
+            [MulticlassConfusionMatrix(num_classes=num_class) for _ in range(4)]
+        )
+
+        self.automatic_optimization = False
+
+    def forward(self, x):
+        return [featurizer(x[i]) for i, featurizer in enumerate(self.featurizers)]
+
+    def training_step(self, batch, batch_idx):
+        x, y = batch
+        # Get the list of optimizers
+        optimizers = self.optimizers()
+        # Forward pass: get predictions from each featurizer
+        y_hats = self(x)
+        # Compute metrics (loss, f1 score, accuracy) for each prediction
+        metrics = [
+            self.compute_metrics(y_hat, y[:, 0 if i < 2 else 1])
+            for i, y_hat in enumerate(y_hats)
+        ]
+        # Iterate over each optimizer and corresponding metric
+        for i, opt in enumerate(optimizers):
+            # Zero the gradients for the optimizer
+            opt.zero_grad()
+            # Perform manual backward pass to compute gradients
+            self.manual_backward(metrics[i][0])
+            # Update the model parameters
+            opt.step()
+        # Log the metrics for each featurizer
+        for i, metric in enumerate(metrics):
+            self.log_dict(
+                {
+                    f"train_loss_{i}": metric[0],
+                    f"train_f1_{i}": metric[1],
+                    f"train_acc_{i}": metric[2],
+                },
+                sync_dist=True,
+            )
+
+    def validation_step(self, batch, batch_idx):
+        x, y = batch
+        y_hats = self(x)
+        metrics = [
+            self.compute_metrics(y_hat, y[:, 0 if i < 2 else 1])
+            for i, y_hat in enumerate(y_hats)
+        ]
+        for i, metric in enumerate(metrics):
+            self.log_dict(
+                {
+                    f"val_loss_{i}": metric[0],
+                    f"val_f1_{i}": metric[1],
+                    f"val_acc_{i}": metric[2],
+                },
+                sync_dist=True,
+            )
+        return metrics[0][0] + metrics[1][0] + metrics[2][0] + metrics[3][0]
+
+    def test_step(self, batch, batch_idx):
+        x, y = batch
+        y_hats = self(x)
+        metrics = [
+            self.compute_metrics(y_hat, y[: 0 if i < 2 else 1])
+            for i, y_hat in enumerate(y_hats)
+        ]
+        for i, metric in enumerate(metrics):
+            self.log_dict(
+                {
+                    f"test_loss_{i}": metric[0],
+                    f"test_f1_{i}": metric[1],
+                    f"test_acc_{i}": metric[2],
+                },
+                sync_dist=True,
+            )
+
+        for i, y_hat in enumerate(y_hats):
+            self.confusion_matrix[i].update(
+                th.argmax(y_hat, dim=1), y[:, 0 if i < 2 else 1]
+            )
+        return metrics[0][0] + metrics[1][0] + metrics[2][0] + metrics[3][0]
+
+    @rank_zero_only
+    def on_test_epoch_end(self):
+        for i in range(len(self.confusion_matrix)):
+            # Compute confusion matrix
+            cm = self.confusion_matrix[i].compute().cpu().numpy()
+
+            # Plot confusion matrix
+            fig, ax = plt.subplots(figsize=(10, 10))
+            sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax)
+            ax.set_xlabel("Predicted")
+            ax.set_ylabel("True")
+            ax.set_title(f"Confusion Matrix for view {i}")
+
+            # Log confusion matrix to wandb
+            wandb.log({f"confusion_matrix_{i}": wandb.Image(fig)})
+            plt.close(fig)
+
+    def configure_optimizers(self):
+        optimizers = [
+            th.optim.Adam(featurizer.parameters(), lr=self.learning_rate)
+            for featurizer in self.featurizers
+        ]
+        return optimizers

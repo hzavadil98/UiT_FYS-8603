@@ -1,4 +1,8 @@
-__all__ = ["Patient_Cancer_Dataloader", "Four_view_two_branch_model"]
+__all__ = [
+    "Patient_Cancer_Dataloader",
+    "Four_view_two_branch_model",
+    "Four_view_featurizers",
+]
 
 from .Dataloaders import Patient_Cancer_Dataloader
-from .Multiview_cancer_models import Four_view_two_branch_model
+from .Multiview_cancer_models import Four_view_featurizers, Four_view_two_branch_model

@@ -8,18 +8,7 @@ from pytorch_lightning.callbacks import (
 from pytorch_lightning.loggers import WandbLogger
 
 import wandb
-from src import Four_view_two_branch_model, Patient_Cancer_Dataloader
-
-
-def check_dataloader_passes_model(dataloader, model):
-    batch = next(iter(dataloader.train_dataloader()))
-    x, y = batch
-
-    y_left, y_right = model.forward(x)
-
-    print(f"data passed ok, outputs: {y_left.shape}, {y_right.shape}")
-
-    return 0
+from src import Four_view_featurizers, Patient_Cancer_Dataloader
 
 
 def main():
@@ -44,10 +33,10 @@ def main():
     )
     # dataloader.train_dataset.plot(0)
 
-    model = Four_view_two_branch_model(num_class=5, drop=0.5, learning_rate=1e-4)
+    model = Four_view_featurizers(num_class=5, drop=0.5, learning_rate=1e-4)
     # check_dataloader_passes_model(dataloader, model)
 
-    wandb_logger = WandbLogger(project="Four_view_two_branch_model", log_model="all")
+    wandb_logger = WandbLogger(project="Four_view_featurizers", log_model="all")
     wandb_logger.watch(model, log="all", log_freq=100)
 
     checkpoint_callback = ModelCheckpoint(
@@ -64,7 +53,7 @@ def main():
     # figure out if running with mps or gpu or cpu
 
     trainer = pl.Trainer(
-        max_epochs=100,
+        max_epochs=2,
         accelerator=accelerator,
         devices=devices,
         logger=wandb_logger,
@@ -77,7 +66,7 @@ def main():
     print(
         f"Finished training, loading the best epoch: {checkpoint_callback.best_model_path}"
     )
-    model = Four_view_two_branch_model.load_from_checkpoint(
+    model = Four_view_featurizers.load_from_checkpoint(
         checkpoint_callback.best_model_path
     )
     # Test
