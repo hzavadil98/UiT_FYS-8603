@@ -22,7 +22,7 @@ class Breast_backbone(pl.LightningModule):
         self.learning_rate = learning_rate
         self.save_hyperparameters()  # Stores all arguments passed to __init__
 
-        self.confusion_matrix = MulticlassConfusionMatrix(num_classes=num_class)
+        self.confusion_matrix = [MulticlassConfusionMatrix(num_classes=num_class)]
         self.confmat_titles = "Confusion Matrix"
 
         self.f1 = F1Score(num_classes=num_class, average="macro", task="multiclass")
@@ -78,8 +78,10 @@ class Four_view_single_featurizer(Breast_backbone):
     nn.Module encapsulating a single resnet and adding an extra linear layer.
     """
 
-    def __init__(self, num_class, drop = 0.3, learning_rate = 1e-3, view : int = 0):
+    def __init__(self, num_class, drop=0.3, learning_rate=1e-3, view: int = 0):
         super(Four_view_single_featurizer, self).__init__(num_class, learning_rate)
+
+        self.confmat_titles = [f"Confusion Matrix view-{view}"]
 
         self.resnet = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
         self.resnet.fc = nn.Identity()
@@ -94,26 +96,26 @@ class Four_view_single_featurizer(Breast_backbone):
     def forward(self, x):
         x = self.resnet(x)
         return self.fc(x)
-    
+
     def training_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
         metrics = self.compute_metrics(y_hat, y, prefix="train_")
         self.log_dict(metrics)
         return metrics["train_loss"]
-    
+
     def validation_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
         metrics = self.compute_metrics(y_hat, y, prefix="val_")
         self.log_dict(metrics)
         return metrics["val_loss"]
-    
+
     def test_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
         metrics = self.compute_metrics(y_hat, y, prefix="test_")
         self.log_dict(metrics)
-        
-        self.confusion_matrix(th.argmax(y_hat,dim=1), y)
+
+        self.confusion_matrix(th.argmax(y_hat, dim=1), y)
         return metrics["test_loss"]
