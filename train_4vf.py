@@ -36,7 +36,7 @@ def main():
     model = Four_view_featurizers(num_class=5, drop=0.5, learning_rate=1e-4)
     # check_dataloader_passes_model(dataloader, model)
 
-    wandb_logger = WandbLogger(project="Four_view_featurizers", log_model="all")
+    wandb_logger = WandbLogger(project="Four_view_featurizers", log_model="best")
     wandb_logger.watch(model, log="all", log_freq=100)
 
     checkpoint_callback = ModelCheckpoint(
@@ -53,7 +53,7 @@ def main():
     # figure out if running with mps or gpu or cpu
 
     trainer = pl.Trainer(
-        max_epochs=3,
+        max_epochs=100,
         accelerator=accelerator,
         devices=devices,
         logger=wandb_logger,

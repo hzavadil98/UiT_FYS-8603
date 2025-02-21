@@ -150,8 +150,9 @@ class Patient_Cancer_Dataloader(pl.LightningDataModule):
         ############## do I want these transforms here? removed flipping the images ##############
         self.train_transform = T.Compose(
             [
-                T.ToTensor(),
+                T.ToImage(),
                 T.RandomRotation(degrees=10),
+                T.ToDtype(torch.float32, scale=True),
                 T.Normalize(
                     mean=[781.0543, 781.0543, 781.0543],
                     std=[1537.8235, 1537.8235, 1537.8235],
@@ -160,7 +161,8 @@ class Patient_Cancer_Dataloader(pl.LightningDataModule):
         )
         self.transform = T.Compose(
             [
-                T.ToTensor(),
+                T.ToImage(),
+                T.ToDtype(torch.float32, scale=True),
                 T.Normalize(
                     mean=[781.0543, 781.0543, 781.0543],
                     std=[1537.8235, 1537.8235, 1537.8235],
