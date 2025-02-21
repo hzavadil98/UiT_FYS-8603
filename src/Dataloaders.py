@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import pytorch_lightning as pl
 import torch
-import torchvision.transforms as T
+import torchvision.transforms.v2 as T
 from pydicom import dcmread
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 

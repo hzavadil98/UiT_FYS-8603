@@ -11,6 +11,10 @@ import wandb
 
 
 class Breast_backbone(pl.LightningModule):
+    """
+    A base class for the models that are used to classify breast cancer. They inherit from this.
+    """
+
     def __init__(self, num_class, learning_rate=1e-3):
         super(Breast_backbone, self).__init__()
 
@@ -71,6 +75,12 @@ class Breast_backbone(pl.LightningModule):
 
 
 class Four_view_two_branch_model(Breast_backbone):
+    """
+    A model containing four individual resnets for each view image. The model has two branches, one for the left breast and one for the right breast.
+    it gives two predictions - one for each breast.
+    TODO - train with two separate optimizers, one for each branch
+    """
+
     def __init__(self, num_class, drop=0.3, learning_rate=1e-3):
         super(Four_view_two_branch_model, self).__init__(num_class, learning_rate)
 
@@ -175,6 +185,10 @@ class Four_view_two_branch_model(Breast_backbone):
 
 
 class Four_view_single_featurizer(nn.Module):
+    """
+    nn.Module encapsulating a single resnet and adding an extra linear layer.
+    """
+
     def __init__(self, num_class, drop=0.3):
         super(Four_view_single_featurizer, self).__init__()
 
@@ -194,6 +208,12 @@ class Four_view_single_featurizer(nn.Module):
 
 
 class Four_view_featurizers(Breast_backbone):
+    """
+    This class is used to train a model that uses 4 separate resnets to extract features from 4 different views of the breast. The four view models are
+    trained separately, each with their own optimizer. Individual resnets are included  in one model to benefit from using a single dataloader - this
+    is probably suboptimal as you cannot chose an optimal epoch for a single resnet.
+    """
+
     def __init__(self, num_class, drop=0.3, learning_rate=1e-3):
         super(Four_view_featurizers, self).__init__(num_class, learning_rate)
 
