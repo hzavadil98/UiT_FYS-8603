@@ -15,7 +15,8 @@ spec:
           limits:
             nvidia.com/gpu: 1
         workingDir: /storage/UiT_FYS-8603/
-        command: ["python", "train_4vf.py"]
+        command: ["python", "train_1vf.py"]
+        #command: ["python", "train_4vf.py"]
         #command: ["python", "train_4v2b.py"]
         #command: ["pwd"]
         volumeMounts:
