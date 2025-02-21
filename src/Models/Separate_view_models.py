@@ -22,9 +22,7 @@ class Breast_backbone(pl.LightningModule):
         self.learning_rate = learning_rate
         self.save_hyperparameters()  # Stores all arguments passed to __init__
 
-        self.confusion_matrix = nn.ModuleList(
-            [MulticlassConfusionMatrix(num_classes=num_class)]
-        )
+        self.confusion_matrix = [MulticlassConfusionMatrix(num_classes=num_class)]
         self.confmat_titles = "Confusion Matrix"
 
         self.f1 = F1Score(num_classes=num_class, average="macro", task="multiclass")
@@ -119,5 +117,5 @@ class Four_view_single_featurizer(Breast_backbone):
         metrics = self.compute_metrics(y_hat, y, prefix="test_")
         self.log_dict(metrics)
 
-        self.confusion_matrix(th.argmax(y_hat, dim=1), y)
+        self.confusion_matrix.update(th.argmax(y_hat, dim=1), y)
         return metrics["test_loss"]

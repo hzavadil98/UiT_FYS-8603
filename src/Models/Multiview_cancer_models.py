@@ -22,9 +22,7 @@ class Breast_backbone(pl.LightningModule):
         self.learning_rate = learning_rate
         self.save_hyperparameters()  # Stores all arguments passed to __init__
 
-        self.confusion_matrix = nn.ModuleList(
-            [MulticlassConfusionMatrix(num_classes=num_class)]
-        )
+        self.confusion_matrix = [MulticlassConfusionMatrix(num_classes=num_class)]
         self.confmat_titles = "Confusion Matrix"
 
         self.f1 = F1Score(num_classes=num_class, average="macro", task="multiclass")
