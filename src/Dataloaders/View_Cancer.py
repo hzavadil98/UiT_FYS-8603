@@ -27,7 +27,7 @@ class View_Cancer_dataset(Dataset):
                         -> image_id.dicom
 
         root_folder: path to folder containing the "images" folder and csv-file
-        You can select the split to extract specific data from the dataset, outputs  4 images for the patient(LCC,LMLO,RCC,RMLO) and lef and right labels
+        You can select the split to extract specific data from the dataset, outputs 1 image specified by the view parameter and its label
         """
         super().__init__()
 
