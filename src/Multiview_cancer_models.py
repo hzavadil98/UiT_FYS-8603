@@ -20,6 +20,7 @@ class Breast_backbone(pl.LightningModule):
 
         self.test_pred = []  # collect predictions
         self.confusion_matrix = MulticlassConfusionMatrix(num_classes=num_class)
+        self.confmat_titles = "Confusion Matrix"
 
         self.f1 = F1Score(num_classes=num_class, average="macro", task="multiclass")
         self.accuracy = Accuracy(
@@ -28,9 +29,18 @@ class Breast_backbone(pl.LightningModule):
 
         self.check_path = "checkpoints/best_model.ckpt"
 
-    def compute_metrics(self, y_hat, y):
+    def compute_metrics(self, y_hat, y, prefix: str = None, postfix: str = None):
         y_pred = th.argmax(y_hat, dim=1)
-        return self.loss(y_hat, y), self.f1(y_pred, y), self.accuracy(y_pred, y)
+        metrics = {
+            "loss": self.loss(y_hat, y),
+            "f1": self.f1(y_pred, y),
+            "acc": self.accuracy(y_pred, y),
+        }
+        if prefix is not None:
+            metrics = {prefix + key: value for key, value in metrics.items()}
+        if postfix is not None:
+            metrics = {key + postfix: value for key, value in metrics.items()}
+        return metrics
 
     def configure_optimizers(self):
         optimizer = th.optim.Adam(self.parameters(), lr=self.learning_rate)
@@ -44,23 +54,20 @@ class Breast_backbone(pl.LightningModule):
 
     @rank_zero_only
     def on_test_epoch_end(self):
-        # Reset confusion matrix if it was used before
-        if self.confusion_matrix is not None:
-            self.confusion_matrix.reset()
+        for i in range(len(self.confusion_matrix)):
+            # Compute confusion matrix
+            cm = self.confusion_matrix[i].compute().cpu().numpy()
 
-        # Compute confusion matrix
-        cm = self.confusion_matrix.compute().cpu().numpy()
+            # Plot confusion matrix
+            fig, ax = plt.subplots(figsize=(10, 10))
+            sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax)
+            ax.set_xlabel("Predicted")
+            ax.set_ylabel("True")
+            ax.set_title(self.confmat_titles[i])
 
-        # Plot confusion matrix
-        fig, ax = plt.subplots(figsize=(10, 10))
-        sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax)
-        ax.set_xlabel("Predicted")
-        ax.set_ylabel("True")
-        ax.set_title("Confusion Matrix")
-
-        # Log confusion matrix to wandb
-        wandb.log({"confusion_matrix": wandb.Image(fig)})
-        plt.close(fig)
+            # Log confusion matrix to wandb
+            wandb.log({self.confmat_titles[i]: wandb.Image(fig)})
+            plt.close(fig)
 
 
 class Four_view_two_branch_model(Breast_backbone):
@@ -70,6 +77,11 @@ class Four_view_two_branch_model(Breast_backbone):
         self.confusion_matrix = nn.ModuleList(
             [MulticlassConfusionMatrix(num_classes=num_class) for _ in range(3)]
         )
+        self.confmat_titles = [
+            "Left_Confusion_Matrix",
+            "Right_Confusion_Matrix",
+            "Overall_Confusion_Matrix",
+        ]
 
         # Define 4 separate internal resnets separate for each view image
         self.resnets = nn.ModuleList(
@@ -109,10 +121,10 @@ class Four_view_two_branch_model(Breast_backbone):
 
     def compute_branch_metrics(self, y_left, y_right, y, prefix: str = None):
         # compute separate metrics for each branch
-        loss_left, f1_left, acc_left = self.compute_metrics(y_left, y[:, 0])
-        loss_right, f1_right, acc_right = self.compute_metrics(y_right, y[:, 1])
+        metrics_left = self.compute_metrics(y_left, y[:, 0], postfix="_left")
+        metrics_right = self.compute_metrics(y_right, y[:, 1], postfix="_right")
         # loss for the optimizer
-        loss = loss_left + loss_right
+        loss = metrics_left["loss_left"] + metrics_right["loss_right"]
         # find the branch tha returns higher cancer score
         y_max = th.max(y, dim=1).values
         y_left_pred = th.argmax(y_left, dim=1)
@@ -123,19 +135,8 @@ class Four_view_two_branch_model(Breast_backbone):
         worse_pred = th.where(worse_pred[:, None], y_left, y_right)
 
         # computes the metrics for the worse predicted case
-        loss_overall, f1_overall, acc_overall = self.compute_metrics(worse_pred, y_max)
-        metrics = {
-            "loss": loss,
-            "loss_left": loss_left,
-            "loss_right": loss_right,
-            "loss_overall": loss_overall,
-            "f1_left": f1_left,
-            "f1_right": f1_right,
-            "f1_overall": f1_overall,
-            "acc_left": acc_left,
-            "acc_right": acc_right,
-            "acc_overall": acc_overall,
-        }
+        metrics_overall = self.compute_metrics(worse_pred, y_max, postfix="_overall")
+        metrics = {**metrics_left, **metrics_right, **metrics_overall}
         if prefix is not None:
             metrics = {prefix + key: value for key, value in metrics.items()}
         return loss, metrics
@@ -152,6 +153,7 @@ class Four_view_two_branch_model(Breast_backbone):
         y_left, y_right = self.forward(x)
         loss, metrics = self.compute_branch_metrics(y_left, y_right, y, prefix="val_")
         self.log_dict(metrics, sync_dist=True)
+        self.log("val_loss", loss)
         return loss
 
     def test_step(self, batch, batch_idx):
@@ -170,24 +172,6 @@ class Four_view_two_branch_model(Breast_backbone):
         self.confusion_matrix[1].update(y_right_pred, y[:, 1])
         self.confusion_matrix[2].update(y_worse_pred, y_max)
         return loss
-
-    @rank_zero_only
-    def on_test_epoch_end(self):
-        titles = ["Left", "Right", "Overall"]
-        for i in range(len(self.confusion_matrix)):
-            # Compute confusion matrix
-            cm = self.confusion_matrix[i].compute().cpu().numpy()
-
-            # Plot confusion matrix
-            fig, ax = plt.subplots(figsize=(10, 10))
-            sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax)
-            ax.set_xlabel("Predicted")
-            ax.set_ylabel("True")
-            ax.set_title(titles[i] + " Confusion Matrix")
-
-            # Log confusion matrix to wandb
-            wandb.log({titles[i] + "_confusion_matrix": wandb.Image(fig)})
-            plt.close(fig)
 
 
 class Four_view_single_featurizer(nn.Module):
@@ -219,6 +203,7 @@ class Four_view_featurizers(Breast_backbone):
         self.confusion_matrix = nn.ModuleList(
             [MulticlassConfusionMatrix(num_classes=num_class) for _ in range(4)]
         )
+        self.confmat_titles = [f"Confusion_Matrix_{i}" for i in range(4)]
 
         self.automatic_optimization = False
 
@@ -227,94 +212,56 @@ class Four_view_featurizers(Breast_backbone):
 
     def training_step(self, batch, batch_idx):
         x, y = batch
-        # Get the list of optimizers
         optimizers = self.optimizers()
-        # Forward pass: get predictions from each featurizer
         y_hats = self(x)
         # Compute metrics (loss, f1 score, accuracy) for each prediction
-        metrics = [
-            self.compute_metrics(y_hat, y[:, 0 if i < 2 else 1])
+        metrics = {
+            k: v
             for i, y_hat in enumerate(y_hats)
-        ]
-        # Iterate over each optimizer and corresponding metric
+            for k, v in self.compute_metrics(
+                y_hat, y[:, 0 if i < 2 else 1], prefix="train_", postfix=f"_{i}"
+            ).items()
+        }
+
+        # Iterate over each optimizer and zero the gradients, perform manual backward pass and update the model parameters
         for i, opt in enumerate(optimizers):
-            # Zero the gradients for the optimizer
             opt.zero_grad()
-            # Perform manual backward pass to compute gradients
-            self.manual_backward(metrics[i][0])
-            # Update the model parameters
+            self.manual_backward(metrics[f"train_loss_{i}"])
             opt.step()
-        # Log the metrics for each featurizer
-        for i, metric in enumerate(metrics):
-            self.log_dict(
-                {
-                    f"train_loss_{i}": metric[0],
-                    f"train_f1_{i}": metric[1],
-                    f"train_acc_{i}": metric[2],
-                },
-                sync_dist=True,
-            )
+        # Log the metrics
+        self.log_dict(metrics, sync_dist=True)
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
         y_hats = self(x)
-        metrics = [
-            self.compute_metrics(y_hat, y[:, 0 if i < 2 else 1])
+        metrics = {
+            k: v
             for i, y_hat in enumerate(y_hats)
-        ]
-        for i, metric in enumerate(metrics):
-            self.log_dict(
-                {
-                    f"val_loss_{i}": metric[0],
-                    f"val_f1_{i}": metric[1],
-                    f"val_acc_{i}": metric[2],
-                },
-                sync_dist=True,
-            )
+            for k, v in self.compute_metrics(
+                y_hat, y[:, 0 if i < 2 else 1], prefix="val_", postfix=f"_{i}"
+            ).items()
+        }
+        self.log_dict(metrics, sync_dist=True)
         self.log(
-            "val_loss",
-            metrics[0][0] + metrics[1][0] + metrics[2][0] + metrics[3][0],
-            sync_dist=True,
+            "val_loss", th.stack([metrics[f"val_loss_{i}"] for i in range(4)]).mean()
         )
 
     def test_step(self, batch, batch_idx):
         x, y = batch
         y_hats = self(x)
-        metrics = [
-            self.compute_metrics(y_hat, y[: 0 if i < 2 else 1])
+        metrics = {
+            k: v
             for i, y_hat in enumerate(y_hats)
-        ]
-        for i, metric in enumerate(metrics):
-            self.log_dict(
-                {
-                    f"test_loss_{i}": metric[0],
-                    f"test_f1_{i}": metric[1],
-                    f"test_acc_{i}": metric[2],
-                },
-                sync_dist=True,
-            )
+            for k, v in self.compute_metrics(
+                y_hat, y[:, 0 if i < 2 else 1], prefix="test_", postfix=f"_{i}"
+            ).items()
+        }
+        self.log_dict(metrics, sync_dist=True)
 
         for i, y_hat in enumerate(y_hats):
             self.confusion_matrix[i].update(
                 th.argmax(y_hat, dim=1), y[:, 0 if i < 2 else 1]
             )
-
-    @rank_zero_only
-    def on_test_epoch_end(self):
-        for i in range(len(self.confusion_matrix)):
-            # Compute confusion matrix
-            cm = self.confusion_matrix[i].compute().cpu().numpy()
-
-            # Plot confusion matrix
-            fig, ax = plt.subplots(figsize=(10, 10))
-            sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax)
-            ax.set_xlabel("Predicted")
-            ax.set_ylabel("True")
-            ax.set_title(f"Confusion Matrix for view {i}")
-
-            # Log confusion matrix to wandb
-            wandb.log({f"confusion_matrix_{i}": wandb.Image(fig)})
-            plt.close(fig)
 
     def configure_optimizers(self):
         optimizers = [

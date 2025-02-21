@@ -48,16 +48,19 @@ def main():
         save_last=True,
     )
     lr_monitor = LearningRateMonitor(logging_interval="step")
-    early_stopping = EarlyStopping(monitor="val_loss", patience=30, mode="min")
+    early_stopping = EarlyStopping(monitor="val_loss", patience=15, mode="min")
 
     # figure out if running with mps or gpu or cpu
 
     trainer = pl.Trainer(
-        max_epochs=100,
+        max_epochs=3,
         accelerator=accelerator,
         devices=devices,
         logger=wandb_logger,
         callbacks=[checkpoint_callback, lr_monitor, early_stopping],
+        # limit_train_batches=3,  # Only 5 training batches per epoch
+        # limit_val_batches=2,
+        # log_every_n_steps=1,
     )
 
     # Train
