@@ -117,5 +117,5 @@ class Four_view_single_featurizer(Breast_backbone):
         metrics = self.compute_metrics(y_hat, y, prefix="test_")
         self.log_dict(metrics)
 
-        self.confusion_matrix.update(th.argmax(y_hat, dim=1), y)
+        self.confusion_matrix[0].update(th.argmax(y_hat, dim=1), y)
         return metrics["test_loss"]
