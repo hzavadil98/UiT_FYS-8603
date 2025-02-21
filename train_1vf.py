@@ -47,7 +47,7 @@ def main():
 
         checkpoint_callback = ModelCheckpoint(
             dirpath="checkpoints/",
-            filename="best_epoch-{epoch:02d}",
+            filename=f"best_epoch_view:{i}",
             save_top_k=1,
             monitor="val_loss",
             mode="min",
