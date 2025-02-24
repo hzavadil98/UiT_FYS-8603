@@ -44,20 +44,28 @@ class View_Cancer_dataset(Dataset):
 
         annotation_csv = pd.read_csv(os.path.join(root_folder, annotation_csv))
 
-        splitBool = True
+        assert view in ["L", "R", None], 'view must be either "L" or "R"'
+        assert laterality in ["CC", "MLO", None], (
+            'laterality must be either "CC" or "MLO"'
+        )
+        assert split in ["training", "test", "validation", None], (
+            'split must be either "training" or "test" or "validation" or None'
+        )
+
         if split is not None:
+            splitBool = True
             splitBool = annotation_csv["split"] == split
-        # selects only the rows corresponding to the split
-        self.annotation = annotation_csv.loc[splitBool]
+            # selects only the rows corresponding to the split
+            self.annotation = annotation_csv.loc[splitBool]
         # selects only the rows corresponding to the view and laterality
-        viewBool = True
         if view is not None:
+            viewBool = True
             viewBool = self.annotation["view_position"] == self.view
-        self.annotation = self.annotation.loc[viewBool]
-        lateralityBool = True
+            self.annotation = self.annotation.loc[viewBool]
         if laterality is not None:
+            lateralityBool = True
             lateralityBool = self.annotation["laterality"] == self.laterality
-        self.annotation = self.annotation.loc[lateralityBool]
+            self.annotation = self.annotation.loc[lateralityBool]
 
         # finds all the unique study_ids = "patient_ids"
         self.image_ids = self.annotation["image_id"].values
