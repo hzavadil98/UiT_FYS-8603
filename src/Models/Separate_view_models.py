@@ -103,21 +103,21 @@ class Four_view_single_featurizer(Breast_backbone):
         x, y = batch
         y_hat = self(x)
         metrics = self.compute_metrics(y_hat, y, prefix="train_")
-        self.log_dict(metrics)
+        self.log_dict(metrics, sync_dist=True)
         return metrics["train_loss"]
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
         metrics = self.compute_metrics(y_hat, y, prefix="val_")
-        self.log_dict(metrics)
+        self.log_dict(metrics, sync_dist=True)
         return metrics["val_loss"]
 
     def test_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
         metrics = self.compute_metrics(y_hat, y, prefix="test_")
-        self.log_dict(metrics)
+        self.log_dict(metrics, sync_dist=True)
 
         self.confusion_matrix[0].update(th.argmax(y_hat, dim=1), y)
         return metrics["test_loss"]
