@@ -99,6 +99,7 @@ def main():
             logger=wandb_logger,
             callbacks=[checkpoint_callback, lr_monitor, early_stopping],
             log_every_n_steps=5,
+            strategy="ddp",
             # limit_train_batches=3,  # Only 5 training batches per epoch
             # limit_val_batches=2,
             # log_every_n_steps=1,
