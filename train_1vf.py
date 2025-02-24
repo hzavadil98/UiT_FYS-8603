@@ -75,7 +75,7 @@ def main():
         wandb_logger = WandbLogger(
             project="Single_View_Featurizers", log_model="best", name=f"View_{i}"
         )
-        wandb_logger.watch(model, log="all", log_freq=100)
+        wandb_logger.watch(model, log="all", log_freq=1)
 
         checkpoint_callback = ModelCheckpoint(
             dirpath="checkpoints/",
