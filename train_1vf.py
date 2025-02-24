@@ -24,6 +24,8 @@ def main():
         root_folder = "/storage/VinDR-data/"
         accelerator = "gpu"
         devices = torch.cuda.device_count()
+        if devices > 1:
+            torch.set_float32_matmul_precision("medium")
 
     train_transform = T.Compose(
         [
@@ -59,7 +61,7 @@ def main():
             root_folder=root_folder,
             annotation_csv="modified_breast-level_annotations.csv",
             imagefolder_path="New_512",
-            batch_size=64,
+            batch_size=32,
             num_workers=8,
             view=i,
             train_transform=train_transform,
