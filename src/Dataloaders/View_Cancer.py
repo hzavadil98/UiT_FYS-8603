@@ -34,6 +34,8 @@ class View_Cancer_dataset(Dataset):
         assert split in ["training", "test", "validation", None], (
             'split must be either "training" or "test" or "validation" or None'
         )
+        assert view in ["CC", "MLO", None], 'laterality must be either "CC" or "MLO"'
+        assert laterality in ["L", "R", None], 'view must be either "L" or "R"'
 
         self.split = split
         self.imagefolder_path = imagefolder_path
@@ -43,14 +45,6 @@ class View_Cancer_dataset(Dataset):
         self.laterality = laterality
 
         annotation_csv = pd.read_csv(os.path.join(root_folder, annotation_csv))
-
-        assert view in ["L", "R", None], 'view must be either "L" or "R"'
-        assert laterality in ["CC", "MLO", None], (
-            'laterality must be either "CC" or "MLO"'
-        )
-        assert split in ["training", "test", "validation", None], (
-            'split must be either "training" or "test" or "validation" or None'
-        )
 
         if split is not None:
             splitBool = True
