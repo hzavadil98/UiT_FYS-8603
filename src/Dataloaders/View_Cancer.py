@@ -58,6 +58,7 @@ class View_Cancer_dataset(Dataset):
             # selects only the rows corresponding to the split
             self.annotation = annotation_csv.loc[splitBool]
         # selects only the rows corresponding to the view and laterality
+        print(view, laterality)
         if view is not None:
             viewBool = True
             viewBool = self.annotation["view_position"] == self.view
@@ -66,7 +67,7 @@ class View_Cancer_dataset(Dataset):
             lateralityBool = True
             lateralityBool = self.annotation["laterality"] == self.laterality
             self.annotation = self.annotation.loc[lateralityBool]
-
+        print(self.annotation)
         # finds all the unique study_ids = "patient_ids"
         self.image_ids = self.annotation["image_id"].values
 
