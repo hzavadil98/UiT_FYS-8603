@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 import pytorch_lightning as pl
 import torch
-import torchvision.transforms.v2 as T
 from pydicom import dcmread
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 
@@ -118,37 +117,15 @@ class View_Cancer_Dataloader(pl.LightningDataModule):
         view: int,
         batch_size: int,
         num_workers: int,
+        train_transform=None,
+        transform=None,
     ):
         super().__init__()
         self.view = view
         self.batch_size = batch_size
         self.num_workers = num_workers
-
-        self.train_transform = T.Compose(
-            [
-                T.ToImage(),
-                # T.RandomRotation(degrees=10),
-                T.ToDtype(torch.float32, scale=True),
-                T.Normalize(
-                    mean=[781.0543, 781.0543, 781.0543],
-                    std=[1537.8235, 1537.8235, 1537.8235],
-                ),
-                T.RandomAdjustSharpness(sharpness_factor=1, p=1),
-                T.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1),
-            ]
-        )
-
-        self.transform = T.Compose(
-            [
-                T.ToImage(),
-                T.ToDtype(torch.float32, scale=True),
-                T.Normalize(
-                    mean=[781.0543, 781.0543, 781.0543],
-                    std=[1537.8235, 1537.8235, 1537.8235],
-                ),
-                T.RandomAdjustSharpness(sharpness_factor=1, p=1),
-            ]
-        )
+        self.train_transform = train_transform
+        self.transform = transform
 
         self.train_dataset = View_Cancer_dataset(
             root_folder=root_folder,

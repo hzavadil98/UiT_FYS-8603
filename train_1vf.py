@@ -1,5 +1,6 @@
 import pytorch_lightning as pl
 import torch
+import torchvision.transforms.v2 as T
 from pytorch_lightning.callbacks import (
     EarlyStopping,
     LearningRateMonitor,
@@ -24,6 +25,32 @@ def main():
         accelerator = "gpu"
         devices = torch.cuda.device_count()
 
+    train_transform = T.Compose(
+        [
+            T.ToImage(),
+            # T.RandomRotation(degrees=10),
+            T.ToDtype(torch.float32, scale=True),
+            T.Normalize(
+                mean=[781.0543, 781.0543, 781.0543],
+                std=[1537.8235, 1537.8235, 1537.8235],
+            ),
+            # T.RandomAdjustSharpness(sharpness_factor=1, p=1),
+            T.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1),
+        ]
+    )
+
+    transform = T.Compose(
+        [
+            T.ToImage(),
+            T.ToDtype(torch.float32, scale=True),
+            T.Normalize(
+                mean=[781.0543, 781.0543, 781.0543],
+                std=[1537.8235, 1537.8235, 1537.8235],
+            ),
+            # T.RandomAdjustSharpness(sharpness_factor=1, p=1),
+        ]
+    )
+
     for i in range(4):
         dataloader = View_Cancer_Dataloader(
             root_folder=root_folder,
@@ -32,6 +59,8 @@ def main():
             batch_size=64,
             num_workers=8,
             view=i,
+            train_transform=train_transform,
+            transform=transform,
         )
         # dataloader.train_dataset.plot(0)
 
@@ -54,12 +83,12 @@ def main():
             save_last=True,
         )
         lr_monitor = LearningRateMonitor(logging_interval="step")
-        early_stopping = EarlyStopping(monitor="val_loss", patience=15, mode="min")
+        early_stopping = EarlyStopping(monitor="val_loss", patience=8, mode="min")
 
         # figure out if running with mps or gpu or cpu
 
         trainer = pl.Trainer(
-            max_epochs=100,
+            max_epochs=15,
             accelerator=accelerator,
             devices=devices,
             logger=wandb_logger,
