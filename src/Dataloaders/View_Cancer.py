@@ -59,6 +59,8 @@ class View_Cancer_dataset(Dataset):
             self.annotation = annotation_csv.loc[splitBool]
         # selects only the rows corresponding to the view and laterality
         print(view, laterality)
+        print(self.annotation["view_position"][0])
+        print(self.annotation["laterality"][0])
         if view is not None:
             viewBool = True
             viewBool = self.annotation["view_position"] == self.view
