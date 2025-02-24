@@ -91,7 +91,7 @@ def main():
         # figure out if running with mps or gpu or cpu
 
         trainer = pl.Trainer(
-            max_epochs=15,
+            max_epochs=35,
             accelerator=accelerator,
             devices=devices,
             logger=wandb_logger,
