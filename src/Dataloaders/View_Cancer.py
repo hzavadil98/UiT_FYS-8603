@@ -107,7 +107,7 @@ class View_Cancer_dataset(Dataset):
         plt.subplot(1, 2, 1)
         plt.imshow(plotimage.permute(1, 2, 0))
         plt.axis("off")
-        plt.title(f"Label: {label}")
+        plt.title(f"Label: {label}, view: {self.view}, laterality: {self.laterality}")
         plt.subplot(1, 2, 2)
         plt.hist(image.flatten(), bins=50)
         plt.yscale("log")
@@ -121,10 +121,10 @@ class View_Cancer_Dataloader(pl.LightningDataModule):
         root_folder: str,
         annotation_csv: str,
         imagefolder_path: str,
-        view: str,
-        laterality: str,
         batch_size: int,
         num_workers: int,
+        view: str = None,
+        laterality: str = None,
         train_transform=None,
         transform=None,
     ):

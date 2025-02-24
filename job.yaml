@@ -1,7 +1,7 @@
 kind: Job
 apiVersion: batch/v1
 metadata:
-  name: train-4v2b
+  name: train
 spec:
   template:
     spec:
@@ -9,13 +9,14 @@ spec:
         springfield.uit.no/gpu-type: rtx-3090
       hostIPC: true
       containers:
-      - name: train-4v2b
+      - name: train
         image: "hzavadil98/cuda_conda:latest"
         resources:
           limits:
             nvidia.com/gpu: 1
         workingDir: /storage/UiT_FYS-8603/
-        command: ["python", "train_1vf.py"]
+        command: ["python", "train_f.py"]
+        #command: ["python", "train_1vf.py"]
         #command: ["python", "train_4vf.py"]
         #command: ["python", "train_4v2b.py"]
         #command: ["pwd"]
