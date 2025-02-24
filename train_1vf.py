@@ -75,7 +75,7 @@ def main():
         wandb_logger = WandbLogger(
             project="Single_View_Featurizers", log_model="best", name=f"View_{i}"
         )
-        wandb_logger.watch(model, log="all", log_freq=1)
+        wandb_logger.watch(model, log="all", log_freq=5)
 
         checkpoint_callback = ModelCheckpoint(
             dirpath="checkpoints/",
@@ -96,6 +96,7 @@ def main():
             devices=devices,
             logger=wandb_logger,
             callbacks=[checkpoint_callback, lr_monitor, early_stopping],
+            log_every_n_steps=5,
             # limit_train_batches=3,  # Only 5 training batches per epoch
             # limit_val_batches=2,
             # log_every_n_steps=1,
