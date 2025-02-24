@@ -56,8 +56,8 @@ def main():
         ]
     )
 
-    views = ["L", "L", "R", "R"]
-    lateralities = ["CC", "MLO", "CC", "MLO"]
+    views = ["CC", "MLO", "CC", "MLO"]
+    lateralities = ["L", "L", "R", "R"]
 
     for i in range(4):
         dataloader = View_Cancer_Dataloader(
