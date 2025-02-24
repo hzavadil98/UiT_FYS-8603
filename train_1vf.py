@@ -38,7 +38,7 @@ def main():
             T.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1),
             T.RandomHorizontalFlip(p=0.5),
             T.RandomVerticalFlip(p=0.5),
-            T.RandomRotation(degrees=10),
+            # T.RandomRotation(degrees=10),
         ]
     )
 
@@ -59,7 +59,7 @@ def main():
             root_folder=root_folder,
             annotation_csv="modified_breast-level_annotations.csv",
             imagefolder_path="New_512",
-            batch_size=64,
+            batch_size=128,
             num_workers=8,
             view=i,
             train_transform=train_transform,
@@ -86,12 +86,12 @@ def main():
             save_last=True,
         )
         lr_monitor = LearningRateMonitor(logging_interval="step")
-        early_stopping = EarlyStopping(monitor="val_loss", patience=8, mode="min")
+        early_stopping = EarlyStopping(monitor="val_loss", patience=12, mode="min")
 
         # figure out if running with mps or gpu or cpu
 
         trainer = pl.Trainer(
-            max_epochs=35,
+            max_epochs=45,
             accelerator=accelerator,
             devices=devices,
             logger=wandb_logger,
