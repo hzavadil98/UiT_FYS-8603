@@ -120,7 +120,8 @@ class View_Cancer_Dataloader(pl.LightningDataModule):
         root_folder: str,
         annotation_csv: str,
         imagefolder_path: str,
-        view: int,
+        view: str,
+        laterality: str,
         batch_size: int,
         num_workers: int,
         train_transform=None,
@@ -128,6 +129,7 @@ class View_Cancer_Dataloader(pl.LightningDataModule):
     ):
         super().__init__()
         self.view = view
+        self.laterality = laterality
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.train_transform = train_transform
@@ -140,6 +142,7 @@ class View_Cancer_Dataloader(pl.LightningDataModule):
             split="training",
             transform=self.train_transform,
             view=view,
+            laterality=laterality,
         )
         self.val_dataset = View_Cancer_dataset(
             root_folder=root_folder,
@@ -148,6 +151,7 @@ class View_Cancer_Dataloader(pl.LightningDataModule):
             split="validation",
             transform=self.transform,
             view=view,
+            laterality=laterality,
         )
         self.test_dataset = View_Cancer_dataset(
             root_folder=root_folder,
@@ -156,6 +160,7 @@ class View_Cancer_Dataloader(pl.LightningDataModule):
             split="test",
             transform=self.transform,
             view=view,
+            laterality=laterality,
         )
 
         labels = self.train_dataset.labels
