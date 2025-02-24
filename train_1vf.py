@@ -34,8 +34,11 @@ def main():
                 mean=[781.0543, 781.0543, 781.0543],
                 std=[1537.8235, 1537.8235, 1537.8235],
             ),
-            # T.RandomAdjustSharpness(sharpness_factor=1, p=1),
+            T.RandomAdjustSharpness(sharpness_factor=1, p=1),
             T.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1),
+            T.RandomHorizontalFlip(p=0.5),
+            T.RandomVerticalFlip(p=0.5),
+            T.RandomRotation(degrees=10),
         ]
     )
 
@@ -47,7 +50,7 @@ def main():
                 mean=[781.0543, 781.0543, 781.0543],
                 std=[1537.8235, 1537.8235, 1537.8235],
             ),
-            # T.RandomAdjustSharpness(sharpness_factor=1, p=1),
+            T.RandomAdjustSharpness(sharpness_factor=1, p=1),
         ]
     )
 
