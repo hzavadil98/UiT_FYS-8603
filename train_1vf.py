@@ -56,6 +56,9 @@ def main():
         ]
     )
 
+    views = ["L", "L", "R", "R"]
+    lateralities = ["CC", "MLO", "CC", "MLO"]
+
     for i in range(4):
         dataloader = View_Cancer_Dataloader(
             root_folder=root_folder,
@@ -63,7 +66,8 @@ def main():
             imagefolder_path="New_512",
             batch_size=32,
             num_workers=8,
-            view=i,
+            view=views[i],
+            laterality=lateralities[i],
             train_transform=train_transform,
             transform=transform,
         )
@@ -93,13 +97,12 @@ def main():
         # figure out if running with mps or gpu or cpu
 
         trainer = pl.Trainer(
-            max_epochs=45,
+            max_epochs=2,
             accelerator=accelerator,
             devices=devices,
             logger=wandb_logger,
             callbacks=[checkpoint_callback, lr_monitor, early_stopping],
             log_every_n_steps=5,
-            strategy="ddp",
             # limit_train_batches=3,  # Only 5 training batches per epoch
             # limit_val_batches=2,
             # log_every_n_steps=1,

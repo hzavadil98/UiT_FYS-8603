@@ -17,8 +17,6 @@ class View_Cancer_dataset(Dataset):
         imagefolder_path: str,
         split=None,
         transform=None,
-        view: str = None,
-        laterality: str = None,
     ):
         """
         root_folder
@@ -39,8 +37,6 @@ class View_Cancer_dataset(Dataset):
         self.imagefolder_path = imagefolder_path
         self.root_folder = root_folder
         self.transforms = transform
-        self.view = view
-        self.laterality = laterality
 
         annotation_csv = pd.read_csv(os.path.join(root_folder, annotation_csv))
 
@@ -50,14 +46,9 @@ class View_Cancer_dataset(Dataset):
         # selects only the rows corresponding to the split
         self.annotation = annotation_csv.loc[splitBool]
         # selects only the rows corresponding to the view and laterality
-        viewBool = True
-        if view is not None:
-            viewBool = self.annotation["view_position"] == self.view
-        self.annotation = self.annotation.loc[viewBool]
-        lateralityBool = True
-        if laterality is not None:
-            lateralityBool = self.annotation["laterality"] == self.laterality
-        self.annotation = self.annotation.loc[lateralityBool]
+        laterality_bool = self.annotation["laterality"] == self.laterality
+        view_position_bool = self.annotation["view_position"] == self.view_position
+        self.annotation = self.annotation.loc[laterality_bool & view_position_bool]
 
         # finds all the unique study_ids = "patient_ids"
         self.image_ids = self.annotation["image_id"].values
@@ -73,7 +64,7 @@ class View_Cancer_dataset(Dataset):
         self.annotation.loc[:, "breast_birads"] = self.annotation["breast_birads"].map(
             self.label_map
         )
-        # gets image labels
+        # finds two labels for each patient_id - L,R
         self.labels = self.annotation["breast_birads"].values
 
     def __len__(self):
@@ -112,90 +103,3 @@ class View_Cancer_dataset(Dataset):
         plt.yscale("log")
         plt.title("Pixel value distribution")
         plt.show()
-
-
-class View_Cancer_Dataloader(pl.LightningDataModule):
-    def __init__(
-        self,
-        root_folder: str,
-        annotation_csv: str,
-        imagefolder_path: str,
-        view: int,
-        batch_size: int,
-        num_workers: int,
-        train_transform=None,
-        transform=None,
-    ):
-        super().__init__()
-        self.view = view
-        self.batch_size = batch_size
-        self.num_workers = num_workers
-        self.train_transform = train_transform
-        self.transform = transform
-
-        self.train_dataset = View_Cancer_dataset(
-            root_folder=root_folder,
-            annotation_csv=annotation_csv,
-            imagefolder_path=imagefolder_path,
-            split="training",
-            transform=self.train_transform,
-            view=view,
-        )
-        self.val_dataset = View_Cancer_dataset(
-            root_folder=root_folder,
-            annotation_csv=annotation_csv,
-            imagefolder_path=imagefolder_path,
-            split="validation",
-            transform=self.transform,
-            view=view,
-        )
-        self.test_dataset = View_Cancer_dataset(
-            root_folder=root_folder,
-            annotation_csv=annotation_csv,
-            imagefolder_path=imagefolder_path,
-            split="test",
-            transform=self.transform,
-            view=view,
-        )
-
-        labels = self.train_dataset.labels
-        class_sample_count = np.array(
-            [len(np.where(labels == t)[0]) for t in np.unique(labels)]
-        )
-        weight = 1.0 / class_sample_count
-        samples_weight = np.array([weight[t] for t in labels])
-        samples_weight = torch.from_numpy(samples_weight)
-        self.train_sampler = WeightedRandomSampler(samples_weight, len(samples_weight))
-
-    def train_dataloader(self):
-        return DataLoader(
-            self.train_dataset,
-            batch_size=self.batch_size,
-            sampler=self.train_sampler,
-            num_workers=self.num_workers,
-            pin_memory=True,
-            persistent_workers=True,
-        )
-
-    def val_dataloader(self):
-        return DataLoader(
-            self.val_dataset,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
-            pin_memory=True,
-            persistent_workers=True,
-            shuffle=False,
-        )
-
-    def test_dataloader(self):
-        return DataLoader(
-            self.test_dataset,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
-            pin_memory=True,
-            persistent_workers=True,
-            shuffle=False,
-        )
-
-    def plot(self, idx):
-        self.train_dataset.plot(idx)
