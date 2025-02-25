@@ -22,9 +22,9 @@ def main():
         devices = 1
     elif torch.cuda.is_available():
         root_folder = "/storage/VinDR-data/"
-        accelerator = "tpu"
+        accelerator = "gpu"
         devices = torch.cuda.device_count()
-        torch.set_float32_matmul_precision("high")
+        # torch.set_float32_matmul_precision("high")
 
     train_transform = T.Compose(
         [
