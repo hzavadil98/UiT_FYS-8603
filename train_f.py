@@ -7,6 +7,7 @@ from pytorch_lightning.callbacks import (
     ModelCheckpoint,
 )
 from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning.strategies import DDPStrategy
 
 import wandb
 from src import Four_view_single_featurizer, View_Cancer_Dataloader
@@ -94,6 +95,8 @@ def main():
         logger=wandb_logger,
         callbacks=[checkpoint_callback, lr_monitor, early_stopping],
         log_every_n_steps=5,
+        strategy=DDPStrategy(find_unused_parameters=False),
+        precision=16,
         # limit_train_batches=3,  # Only 5 training batches per epoch
         # limit_val_batches=2,
     )
