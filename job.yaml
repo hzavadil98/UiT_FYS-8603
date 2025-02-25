@@ -14,11 +14,11 @@ spec:
         resources:
           requests:
             cpu: "16"
-            memory: "20Gi"
+            memory: "16Gi"
             nvidia.com/gpu: 1
           limits:
             cpu: "16"
-            memory: "20Gi"
+            memory: "16Gi"
             nvidia.com/gpu: 1
         workingDir: /storage/UiT_FYS-8603/
         command: ["python", "train_f.py"]
