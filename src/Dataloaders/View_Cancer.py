@@ -136,8 +136,6 @@ class View_Cancer_Dataloader(pl.LightningDataModule):
         self.train_transform = train_transform
         self.transform = transform
 
-        self.prepare_data_per_node = False
-
         self.train_dataset = View_Cancer_dataset(
             root_folder=root_folder,
             annotation_csv=annotation_csv,

@@ -7,7 +7,6 @@ from pytorch_lightning.callbacks import (
     ModelCheckpoint,
 )
 from pytorch_lightning.loggers import WandbLogger
-from pytorch_lightning.strategies import DDPStrategy
 
 import wandb
 from src import Four_view_single_featurizer, View_Cancer_Dataloader
@@ -23,7 +22,7 @@ def main():
         devices = 1
     elif torch.cuda.is_available():
         root_folder = "/storage/VinDR-data/"
-        accelerator = "gpu"
+        accelerator = "tpu"
         devices = torch.cuda.device_count()
         torch.set_float32_matmul_precision("high")
 
@@ -89,14 +88,12 @@ def main():
     # figure out if running with mps or gpu or cpu
 
     trainer = pl.Trainer(
-        max_epochs=2,
+        max_epochs=100,
         accelerator=accelerator,
         devices=devices,
         logger=wandb_logger,
         callbacks=[checkpoint_callback, lr_monitor, early_stopping],
         log_every_n_steps=5,
-        strategy=DDPStrategy(find_unused_parameters=False),
-        precision=16,
         # limit_train_batches=3,  # Only 5 training batches per epoch
         # limit_val_batches=2,
     )
