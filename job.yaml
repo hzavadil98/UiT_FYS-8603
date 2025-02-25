@@ -6,7 +6,7 @@ spec:
   template:
     spec:
       nodeSelector:
-        springfield.uit.no/gpu-type: rtx-3090
+        springfield.uit.no/gpu-type: rtx-A6000
       hostIPC: true
       containers:
       - name: train
