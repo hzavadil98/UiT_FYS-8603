@@ -6,22 +6,17 @@ spec:
   template:
     spec:
       nodeSelector:
-        springfield.uit.no/gpu-type: rtx-3090
+        springfield.uit.no/gpu-type: rtx-2080-ti
       hostIPC: true
       containers:
       - name: train
         image: "hzavadil98/cuda_conda:latest"
         resources:
-          requests:
-            cpu: "16"
-            memory: "16Gi"
-            nvidia.com/gpu: 1
           limits:
-            cpu: "16"
-            memory: "16Gi"
             nvidia.com/gpu: 1
         workingDir: /storage/UiT_FYS-8603/
-        command: ["python", "train_f.py"]
+        command: ["sh", "job_script.sh"]
+        #command: ["python", "train_f.py"]
         #command: ["python", "train_1vf.py"]
         #command: ["python", "train_4vf.py"]
         #command: ["python", "train_4v2b.py"]

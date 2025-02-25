@@ -59,8 +59,8 @@ def main():
         root_folder=root_folder,
         annotation_csv="modified_breast-level_annotations.csv",
         imagefolder_path="New_512",
-        batch_size=128,
-        num_workers=16,
+        batch_size=64,
+        num_workers=8,
         train_transform=train_transform,
         transform=transform,
     )
