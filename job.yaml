@@ -1,17 +1,19 @@
 kind: Job
 apiVersion: batch/v1
 metadata:
-  name: train
+  name: train2
 spec:
   template:
     spec:
       nodeSelector:
-        springfield.uit.no/gpu-type: rtx-3090
+        springfield.uit.no/gpu-type: gtx-1080-ti
       hostIPC: true
       containers:
-      - name: train
+      - name: train2
         image: "hzavadil98/cuda_conda:latest"
         resources:
+          requests:
+            nvidia.com/gpu: 1
           limits:
             nvidia.com/gpu: 1
         workingDir: /storage/UiT_FYS-8603/
