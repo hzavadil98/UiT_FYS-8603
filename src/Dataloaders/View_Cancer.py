@@ -205,3 +205,4 @@ class View_Cancer_Dataloader(pl.LightningDataModule):
 
     def plot(self, idx):
         self.train_dataset.plot(idx)
+        self.val_dataset.plot(idx)
