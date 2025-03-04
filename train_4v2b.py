@@ -89,7 +89,7 @@ def main():
         num_class=5,
         weights_file="checkpoints/One_view_resnet.ckpt",
         drop=0.5,
-        learning_rate=1e-4,
+        learning_rate=1e-5,
     )
     # check_dataloader_passes_model(dataloader, model)
 

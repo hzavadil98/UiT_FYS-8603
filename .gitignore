@@ -6,6 +6,7 @@ dist/
 wheels/
 *.egg-info
 wandb/
+artifacts/
 
 sync.sh
 # pl model checkpoints

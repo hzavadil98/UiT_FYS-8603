@@ -74,7 +74,7 @@ class Breast_backbone(pl.LightningModule):
             # Log confusion matrix to wandb
             if isinstance(self.logger, WandbLogger):
                 wandb.log({self.confmat_titles[i]: wandb.Image(fig)})
-            plt.close(fig)
+                plt.close(fig)
 
 
 class Four_view_single_featurizer(nn.Module):
@@ -216,6 +216,34 @@ class Four_view_two_branch_model(Breast_backbone):
         self.confusion_matrix[1].update(y_right_pred, y[:, 1])
         self.confusion_matrix[2].update(y_worse_pred, y_max)
         return loss
+
+
+class Four_view_two_branch_model1(Four_view_two_branch_model):
+    def __init__(self, num_class, weights_file=None, drop=0.3, learning_rate=1e-3):
+        super(Four_view_two_branch_model, self).__init__(
+            num_class, weights_file, drop, learning_rate
+        )
+
+    def configure_optimizers(self):
+        optimizers = [
+            th.optim.Adam(
+                [
+                    {self.resnets[0].parameters()},
+                    {self.resnets[1].parameters()},
+                    {self.fc_left.parameters()},
+                ],
+                lr=self.learning_rate,
+            ),
+            th.optim.Adam(
+                [
+                    {self.resnets[2].parameters()},
+                    {self.resnets[3].parameters()},
+                    {self.fc_right.parameters()},
+                ],
+                lr=self.learning_rate,
+            ),
+        ]
+        return optimizers
 
 
 class Four_view_featurizers(Breast_backbone):
