@@ -1,0 +1,16 @@
+Metadata-Version: 2.1
+Name: ya_pca
+Version: 0.0.1
+Summary: Yet another package for principal components analysis.This one focuses on PCA rank selection.
+Author: Iain Carmichael
+Author-email: idc9@cornell.edu
+License: MIT
+License-File: LICENSE.txt
+Requires-Dist: numpy
+Requires-Dist: pandas
+Requires-Dist: scipy
+Requires-Dist: scikit-learn
+Requires-Dist: seaborn
+Requires-Dist: matplotlib
+Requires-Dist: statsmodels
+Requires-Dist: fancyimpute

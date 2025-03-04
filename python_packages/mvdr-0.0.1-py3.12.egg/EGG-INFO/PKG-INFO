@@ -1,0 +1,15 @@
+Metadata-Version: 2.1
+Name: mvdr
+Version: 0.0.1
+Summary: Multi-view dimensionality reduction algorithms.
+Author: Iain Carmichael
+Author-email: idc9@cornell.edu
+License: MIT
+License-File: LICENSE.txt
+Requires-Dist: numpy
+Requires-Dist: scipy
+Requires-Dist: scikit-learn
+Requires-Dist: matplotlib
+Requires-Dist: seaborn
+Requires-Dist: joblib
+Requires-Dist: mvlearn
