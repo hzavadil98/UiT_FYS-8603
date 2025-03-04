@@ -93,7 +93,7 @@ def main():
     )
     # check_dataloader_passes_model(dataloader, model)
 
-    wandb_logger = WandbLogger(project="Four_view_two_branch_model", log_model="best")
+    wandb_logger = WandbLogger(project="Four_view_two_branch_model", log_model="all")
     wandb_logger.watch(model, log="all", log_freq=5)
 
     checkpoint_callback = ModelCheckpoint(
@@ -101,11 +101,11 @@ def main():
         filename="4v2b_best_epoch-{epoch:02d}",
         save_top_k=1,
         monitor="val_f1_overall",
-        mode="min",
+        mode="max",
         save_last=True,
     )
     lr_monitor = LearningRateMonitor(logging_interval="step")
-    early_stopping = EarlyStopping(monitor="val_f1_overall", patience=8, mode="min")
+    early_stopping = EarlyStopping(monitor="val_f1_overall", patience=8, mode="max")
 
     # figure out if running with mps or gpu or cpu
 
