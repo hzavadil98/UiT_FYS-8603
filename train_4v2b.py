@@ -35,6 +35,7 @@ def main():
         root_folder = "/storage/VinDR-data/"
         accelerator = "gpu"
         devices = torch.cuda.device_count()
+        torch.set_float32_matmul_precision("high")
 
     train_transform = T.Compose(
         [
@@ -77,7 +78,7 @@ def main():
         root_folder=root_folder,
         annotation_csv="modified_breast-level_annotations.csv",
         imagefolder_path="New_512",
-        batch_size=32,
+        batch_size=16,
         num_workers=8,
         train_transform=train_transform,
         transform=transform,
@@ -92,8 +93,8 @@ def main():
     )
     # check_dataloader_passes_model(dataloader, model)
 
-    wandb_logger = WandbLogger(project="Four_view_two_branch_model", log_model="all")
-    wandb_logger.watch(model, log="all", log_freq=100)
+    wandb_logger = WandbLogger(project="Four_view_two_branch_model", log_model="best")
+    wandb_logger.watch(model, log="all", log_freq=5)
 
     checkpoint_callback = ModelCheckpoint(
         dirpath="checkpoints/",
@@ -113,6 +114,7 @@ def main():
         accelerator=accelerator,
         devices=devices,
         logger=wandb_logger,
+        accumulate_grad_batches=4,
         callbacks=[checkpoint_callback, lr_monitor, early_stopping],
         # limit_train_batches=3,  # Only 5 training batches per epoch
         # limit_val_batches=2,
