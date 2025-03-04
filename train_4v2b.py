@@ -77,7 +77,7 @@ def main():
         root_folder=root_folder,
         annotation_csv="modified_breast-level_annotations.csv",
         imagefolder_path="New_512",
-        batch_size=16,
+        batch_size=32,
         num_workers=8,
         train_transform=train_transform,
         transform=transform,
@@ -109,14 +109,14 @@ def main():
     # figure out if running with mps or gpu or cpu
 
     trainer = pl.Trainer(
-        max_epochs=20,
+        max_epochs=30,
         accelerator=accelerator,
         devices=devices,
         logger=wandb_logger,
         callbacks=[checkpoint_callback, lr_monitor, early_stopping],
-        limit_train_batches=3,  # Only 5 training batches per epoch
-        limit_val_batches=2,
-        log_every_n_steps=1,
+        # limit_train_batches=3,  # Only 5 training batches per epoch
+        # limit_val_batches=2,
+        log_every_n_steps=5,
     )
 
     # Train
