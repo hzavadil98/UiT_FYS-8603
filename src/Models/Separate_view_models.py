@@ -4,6 +4,7 @@ import seaborn as sns
 import torch as th
 import torch.nn as nn
 import torchvision.models as models
+from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.utilities import rank_zero_only
 from torchmetrics.classification import Accuracy, F1Score, MulticlassConfusionMatrix
 
@@ -71,7 +72,8 @@ class Breast_backbone(pl.LightningModule):
             ax.set_title(self.confmat_titles[i])
 
             # Log confusion matrix to wandb
-            wandb.log({self.confmat_titles[i]: wandb.Image(fig)})
+            if isinstance(self.logger, WandbLogger):
+                wandb.log({self.confmat_titles[i]: wandb.Image(fig)})
             plt.close(fig)
 
 
@@ -80,7 +82,9 @@ class Four_view_single_featurizer(Breast_backbone):
     nn.Module encapsulating a single resnet and adding an extra linear layer.
     """
 
-    def __init__(self, num_class, drop=0.3, learning_rate=1e-3, view: int = 0):
+    def __init__(
+        self, num_class, weights_file=None, drop=0.3, learning_rate=1e-3, view: int = 0
+    ):
         super(Four_view_single_featurizer, self).__init__(num_class, learning_rate)
 
         self.confmat_titles = [f"Confusion Matrix view-{view}"]
@@ -94,6 +98,11 @@ class Four_view_single_featurizer(Breast_backbone):
             nn.Dropout(drop),
             nn.Linear(128, num_class),
         )
+
+        if weights_file is not None:
+            self.load_state_dict(
+                th.load(weights_file, map_location=th.device("cpu"))["state_dict"]
+            )
 
     def forward(self, x):
         x = self.resnet(x)

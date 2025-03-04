@@ -1,5 +1,6 @@
 import pytorch_lightning as pl
 import torch
+import torchvision.transforms.v2 as T
 from pytorch_lightning.callbacks import (
     EarlyStopping,
     LearningRateMonitor,
@@ -35,16 +36,60 @@ def main():
         accelerator = "gpu"
         devices = torch.cuda.device_count()
 
+    train_transform = T.Compose(
+        [
+            T.ToImage(),
+            # T.RandomRotation(degrees=10),
+            T.ToDtype(torch.float32, scale=True),
+            T.Normalize(
+                mean=[781.0543, 781.0543, 781.0543],
+                std=[1537.8235, 1537.8235, 1537.8235],
+            ),
+            # T.RandomAdjustSharpness(sharpness_factor=1, p=1),
+            # T.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1),
+            T.RandomHorizontalFlip(p=0.5),
+            T.RandomVerticalFlip(p=0.5),
+            # T.RandomRotation(degrees=10),
+            # T.Normalize(
+            #    mean=[0.5, 0.5, 0.5],
+            #    std=[0.7, 0.7, 0.7],
+            # ),
+        ]
+    )
+
+    transform = T.Compose(
+        [
+            T.ToImage(),
+            T.ToDtype(torch.float32, scale=True),
+            T.Normalize(
+                mean=[781.0543, 781.0543, 781.0543],
+                std=[1537.8235, 1537.8235, 1537.8235],
+            ),
+            # T.RandomAdjustSharpness(sharpness_factor=1, p=1),
+            # T.Normalize(
+            #    mean=[0.5, 0.5, 0.5],
+            #    std=[0.7, 0.7, 0.7],
+            # ),
+        ]
+    )
+
     dataloader = Patient_Cancer_Dataloader(
         root_folder=root_folder,
         annotation_csv="modified_breast-level_annotations.csv",
         imagefolder_path="New_512",
         batch_size=16,
         num_workers=8,
+        train_transform=train_transform,
+        transform=transform,
     )
     # dataloader.train_dataset.plot(0)
 
-    model = Four_view_two_branch_model(num_class=5, drop=0.5, learning_rate=1e-4)
+    model = Four_view_two_branch_model(
+        num_class=5,
+        weights_file="checkpoints/One_view_resnet.ckpt",
+        drop=0.5,
+        learning_rate=1e-4,
+    )
     # check_dataloader_passes_model(dataloader, model)
 
     wandb_logger = WandbLogger(project="Four_view_two_branch_model", log_model="all")
@@ -52,19 +97,19 @@ def main():
 
     checkpoint_callback = ModelCheckpoint(
         dirpath="checkpoints/",
-        filename="best_epoch-{epoch:02d}",
+        filename="4v2b_best_epoch-{epoch:02d}",
         save_top_k=1,
         monitor="val_loss",
         mode="min",
         save_last=True,
     )
     lr_monitor = LearningRateMonitor(logging_interval="step")
-    early_stopping = EarlyStopping(monitor="val_loss", patience=30, mode="min")
+    early_stopping = EarlyStopping(monitor="val_loss", patience=10, mode="min")
 
     # figure out if running with mps or gpu or cpu
 
     trainer = pl.Trainer(
-        max_epochs=100,
+        max_epochs=20,
         accelerator=accelerator,
         devices=devices,
         logger=wandb_logger,

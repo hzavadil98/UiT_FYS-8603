@@ -128,6 +128,8 @@ class Patient_Cancer_Dataloader(pl.LightningDataModule):
         imagefolder_path: str,
         batch_size=16,
         num_workers=8,
+        train_transform=None,
+        transform=None,
     ):
         """
         root_folder
@@ -146,7 +148,9 @@ class Patient_Cancer_Dataloader(pl.LightningDataModule):
         super().__init__()
         self.batch_size = batch_size
         self.num_workers = num_workers
-        '''
+        self.train_transform = train_transform
+        self.transform = transform
+        """
         ############## do I want these transforms here? removed flipping the images ##############
         self.train_transform = T.Compose(
             [
@@ -169,33 +173,7 @@ class Patient_Cancer_Dataloader(pl.LightningDataModule):
                 ),
             ]
         )
-        '''
-        
-        self.train_transform = T.Compose(
-            [
-                T.ToImage(),
-                #T.RandomRotation(degrees=10),
-                T.ToDtype(torch.float32, scale=True),
-                T.Normalize(
-                    mean=[781.0543, 781.0543, 781.0543],
-                    std=[1537.8235, 1537.8235, 1537.8235],
-                ),
-                T.RandomAdjustSharpness(sharpness_factor=1, p=1),
-                T.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1),
-            ]
-        )
-        
-        self.transform = T.Compose(
-            [
-                T.ToImage(),
-                T.ToDtype(torch.float32, scale=True),
-                T.Normalize(
-                    mean=[781.0543, 781.0543, 781.0543],
-                    std=[1537.8235, 1537.8235, 1537.8235],
-                ),
-                T.RandomAdjustSharpness(sharpness_factor=1, p=1),
-            ]
-        )
+        """
 
         self.train_dataset = Patient_Cancer_Dataset(
             root_folder,
@@ -260,7 +238,6 @@ class Patient_Cancer_Dataloader(pl.LightningDataModule):
             persistent_workers=True,
             shuffle=False,
         )
-        
+
     def plot(self, idx):
         self.train_dataset.plot(idx)
-        

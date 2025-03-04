@@ -4,6 +4,7 @@ import seaborn as sns
 import torch as th
 import torch.nn as nn
 import torchvision.models as models
+from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.utilities import rank_zero_only
 from torchmetrics.classification import Accuracy, F1Score, MulticlassConfusionMatrix
 
@@ -71,8 +72,32 @@ class Breast_backbone(pl.LightningModule):
             ax.set_title(self.confmat_titles[i])
 
             # Log confusion matrix to wandb
-            wandb.log({self.confmat_titles[i]: wandb.Image(fig)})
+            if isinstance(self.logger, WandbLogger):
+                wandb.log({self.confmat_titles[i]: wandb.Image(fig)})
             plt.close(fig)
+
+
+class Four_view_single_featurizer(nn.Module):
+    """
+    nn.Module encapsulating a single resnet and adding an extra linear layer.
+    """
+
+    def __init__(self, num_class, drop=0.3):
+        super(Four_view_single_featurizer, self).__init__()
+
+        self.resnet = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
+        self.resnet.fc = nn.Identity()
+
+        self.fc = nn.Sequential(
+            nn.Linear(512, 128),
+            nn.ReLU(),
+            nn.Dropout(drop),
+            nn.Linear(128, num_class),
+        )
+
+    def forward(self, x):
+        x = self.resnet(x)
+        return self.fc(x)
 
 
 class Four_view_two_branch_model(Breast_backbone):
@@ -82,7 +107,7 @@ class Four_view_two_branch_model(Breast_backbone):
     TODO - train with two separate optimizers, one for each branch
     """
 
-    def __init__(self, num_class, drop=0.3, learning_rate=1e-3):
+    def __init__(self, num_class, weights_file=None, drop=0.3, learning_rate=1e-3):
         super(Four_view_two_branch_model, self).__init__(num_class, learning_rate)
 
         self.confusion_matrix = nn.ModuleList(
@@ -97,11 +122,19 @@ class Four_view_two_branch_model(Breast_backbone):
         # Define 4 separate internal resnets separate for each view image
         self.resnets = nn.ModuleList(
             [
-                models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
+                Four_view_single_featurizer(num_class, drop)
                 for _ in range(4)
+                # models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
+                # for _ in range(4)
             ]
-            # [models.resnet18(weights="DEFAULT") for _ in range(4)]
         )
+
+        if weights_file is not None:
+            for i, resnet in enumerate(self.resnets):
+                resnet.load_state_dict(
+                    th.load(weights_file, map_location=th.device("cpu"))["state_dict"]
+                )
+
         for resnet in self.resnets:
             resnet.fc = nn.Identity()
 
@@ -183,29 +216,6 @@ class Four_view_two_branch_model(Breast_backbone):
         self.confusion_matrix[1].update(y_right_pred, y[:, 1])
         self.confusion_matrix[2].update(y_worse_pred, y_max)
         return loss
-
-
-class Four_view_single_featurizer(nn.Module):
-    """
-    nn.Module encapsulating a single resnet and adding an extra linear layer.
-    """
-
-    def __init__(self, num_class, drop=0.3):
-        super(Four_view_single_featurizer, self).__init__()
-
-        self.resnet = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
-        self.resnet.fc = nn.Identity()
-
-        self.fc = nn.Sequential(
-            nn.Linear(512, 128),
-            nn.ReLU(),
-            nn.Dropout(drop),
-            nn.Linear(128, num_class),
-        )
-
-    def forward(self, x):
-        x = self.resnet(x)
-        return self.fc(x)
 
 
 class Four_view_featurizers(Breast_backbone):
