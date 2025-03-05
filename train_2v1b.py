@@ -9,12 +9,12 @@ from pytorch_lightning.callbacks import (
 from pytorch_lightning.loggers import WandbLogger
 
 import wandb
-from src import Four_view_single_featurizer, View_Cancer_Dataloader
+from src import Breast_Cancer_Dataloader, Two_view_model
 
 
 def main():
     """
-    Training a single view featurizer model on all modalities mixed together
+    Training a two views model - CC,MLO but lateralities mixed together
     """
     # Recognizes if running on my mac or on the server - sets the root_folder and accelerator
     if torch.backends.mps.is_available():
@@ -27,7 +27,7 @@ def main():
         root_folder = "/storage/VinDR-data/"
         accelerator = "gpu"
         devices = torch.cuda.device_count()
-        # torch.set_float32_matmul_precision("high")
+        torch.set_float32_matmul_precision("high")
 
     train_transform = T.Compose(
         [
@@ -66,59 +66,60 @@ def main():
         ]
     )
 
-    dataloader = View_Cancer_Dataloader(
+    dataloader = Breast_Cancer_Dataloader(
         root_folder=root_folder,
         annotation_csv="modified_breast-level_annotations.csv",
         imagefolder_path="New_512",
-        batch_size=64,
+        batch_size=32,
         num_workers=8,
         train_transform=train_transform,
         transform=transform,
     )
     # dataloader.train_dataset.plot(0)
 
-    model = Four_view_single_featurizer(
-        num_class=5, drop=0.5, learning_rate=1e-4, view=-1
+    model = Two_view_model(
+        num_class=5,
+        weights_file="checkpoints/One_view_resnet.ckpt",
+        drop=0.5,
+        learning_rate=1e-5,
     )
     # check_dataloader_passes_model(dataloader, model)
 
-    wandb_logger = WandbLogger(project="Single_Featurizer_All_Views", log_model="best")
+    wandb_logger = WandbLogger(project="Two_view_one_branch_model", log_model="all")
     wandb_logger.watch(model, log="all", log_freq=5)
 
     checkpoint_callback = ModelCheckpoint(
         dirpath="checkpoints/",
-        filename="best_epoch:",
+        filename="2v1b_best_epoch-{epoch:02d}",
         save_top_k=1,
         monitor="val_loss",
         mode="min",
         save_last=True,
     )
     lr_monitor = LearningRateMonitor(logging_interval="step")
-    early_stopping = EarlyStopping(monitor="val_loss", patience=12, mode="min")
+    early_stopping = EarlyStopping(monitor="val_loss", patience=8, mode="min")
 
     # figure out if running with mps or gpu or cpu
 
     trainer = pl.Trainer(
-        max_epochs=100,
+        max_epochs=30,
         accelerator=accelerator,
         devices=devices,
         logger=wandb_logger,
+        accumulate_grad_batches=4,
         callbacks=[checkpoint_callback, lr_monitor, early_stopping],
-        log_every_n_steps=5,
         # limit_train_batches=3,  # Only 5 training batches per epoch
         # limit_val_batches=2,
+        log_every_n_steps=5,
     )
 
-    print("Starting training")
     # Train
     trainer.fit(model, dataloader)
     # Load best weights
     print(
         f"Finished training, loading the best epoch: {checkpoint_callback.best_model_path}"
     )
-    model = Four_view_single_featurizer.load_from_checkpoint(
-        checkpoint_callback.best_model_path
-    )
+    model = Two_view_model.load_from_checkpoint(checkpoint_callback.best_model_path)
     # Test
     trainer.test(model, dataloader)
 

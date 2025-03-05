@@ -13,6 +13,9 @@ from src import Four_view_single_featurizer, View_Cancer_Dataloader
 
 
 def main():
+    """
+    Training single view featurizer models - 4 of them each on a specific "modality#
+    """
     # Recognizes if running on my mac or on the server - sets the root_folder and accelerator
     if torch.backends.mps.is_available():
         root_folder = (

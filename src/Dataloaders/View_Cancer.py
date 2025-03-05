@@ -180,7 +180,7 @@ class View_Cancer_Dataloader(pl.LightningDataModule):
             sampler=self.train_sampler,
             num_workers=self.num_workers,
             pin_memory=True,
-            # persistent_workers=True,
+            persistent_workers=True,
         )
 
     def val_dataloader(self):
@@ -189,7 +189,7 @@ class View_Cancer_Dataloader(pl.LightningDataModule):
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             pin_memory=True,
-            # persistent_workers=True,
+            persistent_workers=True,
             shuffle=False,
         )
 
@@ -199,7 +199,7 @@ class View_Cancer_Dataloader(pl.LightningDataModule):
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             pin_memory=True,
-            # persistent_workers=True,
+            persistent_workers=True,
             shuffle=False,
         )
 

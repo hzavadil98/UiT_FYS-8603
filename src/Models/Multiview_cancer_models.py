@@ -219,6 +219,10 @@ class Four_view_two_branch_model(Breast_backbone):
 
 
 class Four_view_two_branch_model1(Four_view_two_branch_model):
+    """
+    A 4v2b model with separate optimizers for each branch
+    """
+
     def __init__(self, num_class, weights_file=None, drop=0.3, learning_rate=1e-3):
         super(Four_view_two_branch_model, self).__init__(
             num_class, weights_file, drop, learning_rate
@@ -328,3 +332,66 @@ class Four_view_featurizers(Breast_backbone):
             for featurizer in self.featurizers
         ]
         return optimizers
+
+
+class Two_view_model(Breast_backbone):
+    """
+    A model that uses two resnets to extract features from two views of the breast. The two views are trained separately and then concatenated to a single
+    linear layer that outputs the final prediction.
+    """
+
+    def __init__(self, num_class, weights_file=None, drop=0.3, learning_rate=1e-3):
+        super(Two_view_model, self).__init__(num_class, learning_rate)
+
+        # two separate featurizers for CC an MLO views respectively
+        self.resnets = nn.ModuleList(
+            [Four_view_single_featurizer(num_class, drop) for _ in range(2)]
+        )
+
+        if weights_file is not None:
+            for i, resnet in enumerate(self.resnets):
+                resnet.load_state_dict(
+                    th.load(weights_file, map_location=th.device("cpu"))["state_dict"]
+                )
+
+        for resnet in self.resnets:
+            resnet.fc = nn.Linear(512, 128)
+
+        self.fc = nn.Sequential(
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Dropout(drop),
+            nn.Linear(128, num_class),
+        )
+
+    def forward(self, x):
+        x = [self.resnets[i](image) for i, image in enumerate(x)]
+        x = th.cat(x, dim=1)
+        return self.fc(x)
+
+    def training_step(self, batch, batch_idx):
+        x, y = batch
+        y_hat = self(x)
+        metrics = self.compute_metrics(y_hat, y, prefix="train_")
+        self.log_dict(metrics, sync_dist=True)
+        return metrics["train_loss"]
+
+    def validation_step(self, batch, batch_idx):
+        x, y = batch
+        y_hat = self(x)
+        metrics = self.compute_metrics(y_hat, y, prefix="val_")
+        self.log_dict(metrics, sync_dist=True)
+        return metrics["val_loss"]
+
+    def test_step(self, batch, batch_idx):
+        x, y = batch
+        y_hat = self(x)
+        metrics = self.compute_metrics(y_hat, y, prefix="test_")
+        self.log_dict(metrics, sync_dist=True)
+        self.confusion_matrix[0].update(th.argmax(y_hat, dim=1), y)
+        return metrics["test_loss"]
+
+    def get_resnet_outputs(self, batch):
+        x, y = batch
+        x = [self.resnets[i](image) for i, image in enumerate(x)]
+        return x
