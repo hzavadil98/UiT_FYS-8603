@@ -392,6 +392,9 @@ class Two_view_model(Breast_backbone):
         return metrics["test_loss"]
 
     def get_resnet_outputs(self, batch):
-        x, y = batch
-        x = [self.resnets[i](image) for i, image in enumerate(x)]
+        self.eval()
+        with th.no_grad():
+            x, y = batch
+            x = [self.resnets[i](image) for i, image in enumerate(x)]
+        self.train()
         return x

@@ -110,12 +110,16 @@ class Patient_Cancer_Dataset(Dataset):
         images = [
             (image - image.min()) / (image.max() - image.min()) for image in images
         ]
-        fig, axs = plt.subplots(2, 2)
-
+        fig, axs = plt.subplots(2, 2, figsize=(10, 10))
+        view = ["CC", "MLO"]
+        laterality = ["Left", "Right"]
         for i in range(2):
             for j in range(2):
                 axs[i, j].imshow(images[i * 2 + j].permute(1, 2, 0))
-                axs[i, j].set_title(f"Label: {labels[i].item()}")
+                axs[i, j].set_title(
+                    f"{laterality[i]}{view[j]}, label: {labels[i].item()}"
+                )
+                axs[i, j].axis("off")
         plt.show()
 
 
@@ -239,4 +243,4 @@ class Patient_Cancer_Dataloader(pl.LightningDataModule):
         )
 
     def plot(self, idx):
-        self.train_dataset.plot(idx)
+        self.test_dataset.plot(idx)

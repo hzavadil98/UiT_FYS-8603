@@ -245,6 +245,8 @@ def get_mcca_from_ajive_out(ajive_out):
 
     common_out = ajive_out["common"]
     common.common_norm_scores_ = common_out["common_scores"]
+    # ADDED BY ME
+    common.common_loadings_ = common_out["common_loadings"]
     common.evals_ = common_out["sqsvals"]
 
     cs_col_norms = normalize_cols(sum(vs for vs in common_out["view_scores"]))[1]
