@@ -69,7 +69,10 @@ class Breast_backbone(pl.LightningModule):
             sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax)
             ax.set_xlabel("Predicted")
             ax.set_ylabel("True")
-            ax.set_title(self.confmat_titles[i])
+            if len(self.confmat_titles) == 1:
+                ax.set_title(self.confmat_titles)
+            else:
+                ax.set_title(self.confmat_titles[i])
 
             # Log confusion matrix to wandb
             if isinstance(self.logger, WandbLogger):
