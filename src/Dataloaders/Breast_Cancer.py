@@ -129,7 +129,8 @@ class Breast_Cancer_Dataset(Dataset):
         fig, axs = plt.subplots(1, 2)
 
         for i in range(2):
-            axs[i].imshow(images[i].permute(1, 2, 0))
+            # axs[i].imshow(images[i].permute(1, 2, 0))
+            axs[i].imshow(images[i][0])
             axs[i].set_title(f"Label: {label.item()}")
         plt.show()
 
