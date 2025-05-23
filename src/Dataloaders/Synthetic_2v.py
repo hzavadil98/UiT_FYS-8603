@@ -1,14 +1,11 @@
 import random
 
-import cv2
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 import pytorch_lightning as pl
 import torch
 import torchvision.transforms.v2 as T
-from pydicom import dcmread
-from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
+from torch.utils.data import DataLoader, Dataset
 
 
 class Synthetic_2v_Dataset(Dataset):
@@ -185,10 +182,12 @@ class Synthetic_2v_Dataset(Dataset):
         )
 
         # Convert views to float32 and stack
-        images = np.stack([view1, view2], axis=0).astype(np.float32)
+        images = [view1.astype(np.float32), view2.astype(np.float32)]
 
         # Convert to torch tensor and add channel dimension if needed
-        tensor_images = torch.from_numpy(images).unsqueeze(1)  # shape: (2, 1, H, W)
+        tensor_images = [
+            torch.from_numpy(image).unsqueeze(0) for image in images
+        ]  # shape: (1, H, W)
 
         # Concatenate local transform with self.transform if provided
         # Resize using torchvision transforms
@@ -202,9 +201,9 @@ class Synthetic_2v_Dataset(Dataset):
         if self.transform is not None:
             transform = T.Compose([*transform.transforms, *self.transform.transforms])
         # Apply transform to each view
-        tensor_images = torch.stack(
-            [transform(img) for img in tensor_images], dim=0
-        )  # shape: (2, 1, img_size, img_size)
+        tensor_images = [
+            transform(img) for img in tensor_images
+        ]  # shape: (1, img_size, img_size)
 
         return tensor_images
 
@@ -212,10 +211,10 @@ class Synthetic_2v_Dataset(Dataset):
         return self.n_samples
 
     def __getitem__(self, idx):
-        return self.generate_image(idx), self.labels[idx]
+        return self.generate_image(idx), self.labels[idx, 0], self.labels[idx, 1]
 
     def plot(self, idx):
-        images, label = self.__getitem__(idx)
+        images, label1, label2 = self.__getitem__(idx)
         # Transform images to the interval (0, 1)
         images = [
             (image - image.min()) / (image.max() - image.min()) for image in images
@@ -229,7 +228,7 @@ class Synthetic_2v_Dataset(Dataset):
             axs[i].set_xticks([])
             axs[i].set_yticks([])
             axs[i].set_aspect("equal")
-            axs[i].set_title(f"Label: {label[i]}")
+            axs[i].set_title(f"Label 1: {label1}, Label 2: {label2}")
         plt.show()
 
 
