@@ -1,3 +1,4 @@
+import pathlib
 import random
 
 import matplotlib.pyplot as plt
@@ -9,17 +10,64 @@ from torch.utils.data import DataLoader, Dataset
 
 
 class Synthetic_2v_Dataset(Dataset):
-    def __init__(self, n_samples, img_size=512, transform=None):
+    def __init__(self, n_samples, image_save_dir, img_size=512, transform=None):
         self.n_samples = n_samples
         self.transform = transform
         self.img_size = img_size
+        self.image_save_dir = pathlib.Path(image_save_dir)
+
+        # check if the directory exists, if not create it
+        if not self.image_save_dir.exists():
+            self.create_dataset()
+        else:
+            self.load_dataset()
+
+    def load_dataset(self):
+        """
+        Load the dataset from disk if it exists.
+        """
+        self.labels = np.load(self.image_save_dir / "labels.npy")
+        self.parameters = np.load(
+            self.image_save_dir / "parameters.npy", allow_pickle=True
+        )
+        self.image_paths = np.load(
+            self.image_save_dir / "image_paths.npy", allow_pickle=True
+        )
+
+        # Convert paths to pathlib.Path objects
+        # self.image_paths = [(pathlib.Path(p[0]), pathlib.Path(p[1])) for p in self.image_paths]
+
+    def create_dataset(self):
+        """
+        Create the dataset by generating images and saving them to disk.
+        This method is called in the constructor.
+        """
+        # Create the save directory if it doesn't exist
+        self.image_save_dir.mkdir(parents=True, exist_ok=True)
 
         self.labels = np.random.randint(0, 3, size=(self.n_samples, 2))
+
+        np.save(self.image_save_dir / "labels.npy", self.labels)
 
         self.parameters = [
             self.generate_random_parameters(task1, task2)
             for task1, task2 in self.labels
         ]
+
+        np.save(self.image_save_dir / "parameters.npy", self.parameters)
+
+        self.image_paths = []  # Store paths instead of images
+        for i in range(self.n_samples):
+            view0_path = self.image_save_dir / f"image_{i}_view_0.pt"
+            view1_path = self.image_save_dir / f"image_{i}_view_1.pt"
+            self.image_paths.append((view0_path, view1_path))
+
+            image_tensors = self.generate_image(i)  # This still returns tensors
+
+            torch.save(image_tensors[0], self.image_paths[i][0])  # Save view 0
+            torch.save(image_tensors[1], self.image_paths[i][1])  # Save view 1
+
+        np.save(self.image_save_dir / "image_paths.npy", self.image_paths)
 
     def generate_sinusoidal_pattern(self, z, img_size):
         fx = z[0]  # frequency x in [0, 10]
@@ -194,12 +242,11 @@ class Synthetic_2v_Dataset(Dataset):
         transform = T.Compose(
             [
                 T.Resize((self.img_size, self.img_size)),  # expects (C, H, W)
-                T.Normalize(mean=[0.0], std=[255.0]),  # normalize to [0,1]
+                T.ToImage(),
+                T.ToDtype(torch.float32, scale=True),  # convert to float32
             ]
         )
 
-        if self.transform is not None:
-            transform = T.Compose([*transform.transforms, *self.transform.transforms])
         # Apply transform to each view
         tensor_images = [
             transform(img) for img in tensor_images
@@ -211,7 +258,17 @@ class Synthetic_2v_Dataset(Dataset):
         return self.n_samples
 
     def __getitem__(self, idx):
-        return self.generate_image(idx), self.labels[idx, 0], self.labels[idx, 1]
+        view0_path, view1_path = self.image_paths[idx]
+
+        image_view0 = torch.load(view0_path)
+        image_view1 = torch.load(view1_path)
+
+        if self.transform is not None:
+            images = [self.transform(image_view0), self.transform(image_view1)]
+        else:
+            images = [image_view0, image_view1]
+
+        return images, self.labels[idx, 0], self.labels[idx, 1]
 
     def plot(self, idx):
         images, label1, label2 = self.__getitem__(idx)
@@ -240,6 +297,7 @@ class Synthetic_2v_Dataloader(pl.LightningDataModule):
         batch_size=32,
         num_workers=4,
         transform=None,
+        image_save_dir="synthetic_images",
     ):
         super().__init__()
         self.n_samples = n_samples
@@ -247,21 +305,25 @@ class Synthetic_2v_Dataloader(pl.LightningDataModule):
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.transform = transform
+        self.image_save_dir = pathlib.Path(image_save_dir)
 
         self.train_dataset = Synthetic_2v_Dataset(
             n_samples=self.n_samples[0],
             img_size=self.img_size,
             transform=self.transform,
+            image_save_dir=self.image_save_dir / "train",
         )
         self.val_dataset = Synthetic_2v_Dataset(
             n_samples=self.n_samples[1],
             img_size=self.img_size,
             transform=self.transform,
+            image_save_dir=self.image_save_dir / "val",
         )
         self.test_dataset = Synthetic_2v_Dataset(
             n_samples=self.n_samples[2],
             img_size=self.img_size,
             transform=self.transform,
+            image_save_dir=self.image_save_dir / "test",
         )
 
     def train_dataloader(self):
@@ -270,6 +332,7 @@ class Synthetic_2v_Dataloader(pl.LightningDataModule):
             batch_size=self.batch_size,
             shuffle=True,
             num_workers=self.num_workers,
+            persistent_workers=True,
         )
 
     def val_dataloader(self):
@@ -278,6 +341,7 @@ class Synthetic_2v_Dataloader(pl.LightningDataModule):
             batch_size=self.batch_size,
             shuffle=False,
             num_workers=self.num_workers,
+            persistent_workers=True,
         )
 
     def test_dataloader(self):
@@ -286,6 +350,7 @@ class Synthetic_2v_Dataloader(pl.LightningDataModule):
             batch_size=self.batch_size,
             shuffle=False,
             num_workers=self.num_workers,
+            persistent_workers=True,
         )
 
 

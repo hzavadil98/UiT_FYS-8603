@@ -25,3 +25,6 @@ checkpoints/
 .DS_Store
 
 *lightning_logs/
+
+*synthetic_images/
+profiler_logs/

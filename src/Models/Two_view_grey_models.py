@@ -1,14 +1,15 @@
+import time
+
 import matplotlib.pyplot as plt
 import pytorch_lightning as pl
 import seaborn as sns
 import torch as th
 import torch.nn as nn
 import torch.nn.functional as F
-import torchvision.models as models
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.utilities import rank_zero_only
 from torch.nn import init
-from torchmetrics.classification import Accuracy, F1Score, MulticlassConfusionMatrix
+from torchmetrics.classification import Accuracy, MulticlassConfusionMatrix
 
 import wandb
 
@@ -32,7 +33,7 @@ class ResNeXtBottleneck(nn.Module):
             widen_factor: factor to reduce the input dimensionality before convolution.
         """
         super(ResNeXtBottleneck, self).__init__()
-        width_ratio = out_channels / (widen_factor * 64.0)
+        width_ratio = out_channels / (widen_factor * 4.0)
         D = cardinality * int(base_width * width_ratio)
         self.conv_reduce = nn.Conv2d(
             in_channels, D, kernel_size=1, stride=1, padding=0, bias=False
@@ -104,18 +105,18 @@ class ResNeXt(nn.Module):
         self.nlabels = nlabels
         self.output_size = 64
         self.stages = [
-            64,
-            64 * self.widen_factor,
-            128 * self.widen_factor,
-            256 * self.widen_factor,
+            4,
+            4 * self.widen_factor,
+            8 * self.widen_factor,
+            16 * self.widen_factor,
         ]
 
-        self.conv_1_3x3 = nn.Conv2d(1, 64, 3, 1, 1, bias=False)
-        self.bn_1 = nn.BatchNorm2d(64)
+        self.conv_1_3x3 = nn.Conv2d(1, 4, 3, 1, 1, bias=False)
+        self.bn_1 = nn.BatchNorm2d(4)
         self.stage_1 = self.block("stage_1", self.stages[0], self.stages[1], 1)
         self.stage_2 = self.block("stage_2", self.stages[1], self.stages[2], 2)
         self.stage_3 = self.block("stage_3", self.stages[2], self.stages[3], 2)
-        self.classifier = nn.Linear(self.stages[3], nlabels)
+        self.classifier = nn.Linear(self.stages[3] * 4, nlabels)
         init.kaiming_normal_(self.classifier.weight)
 
         for key in self.state_dict():
@@ -169,13 +170,21 @@ class ResNeXt(nn.Module):
         return block
 
     def forward(self, x):
+        #    print(x.shape)
         x = self.conv_1_3x3.forward(x)
+        #    print(x.shape)
         x = F.gelu(self.bn_1.forward(x))
         x = self.stage_1.forward(x)
+        #    print(x.shape)
         x = self.stage_2.forward(x)
+        #    print(x.shape)
         x = self.stage_3.forward(x)
-        x = F.avg_pool2d(x, 8, 1)
-        x = x.view(-1, self.stages[3])
+        #    print(x.shape)
+        x = F.avg_pool2d(x, 64, 64)
+        #    print(x.shape)
+        # x = x.view(-1, self.stages[3])
+        x = x.view(x.size(0), -1)
+        #    print(x.shape)
         return self.classifier(x)
 
 
@@ -185,6 +194,7 @@ class TwoViewCNN(pl.LightningModule):
         self.num_classes = num_classes
         self.num_views = num_views
         self.learning_rate = learning_rate
+        self.confmat_titles = ["Confusion Matrix"]
         self.save_hyperparameters()
 
         self.loss = nn.CrossEntropyLoss()
@@ -198,11 +208,11 @@ class TwoViewCNN(pl.LightningModule):
         for _ in range(num_views):
             self.resnexts.append(
                 ResNeXt(
-                    cardinality=8,
-                    depth=29,
+                    cardinality=4,
+                    depth=20,
                     nlabels=num_classes,
-                    base_width=4,
-                    widen_factor=4,
+                    base_width=2,
+                    widen_factor=2,
                 )
             )
         # change the classifier layer to identity
@@ -210,28 +220,43 @@ class TwoViewCNN(pl.LightningModule):
             resnext.classifier = nn.Identity()
 
         self.fc = nn.Sequential(
-            nn.Linear(2 * 1024, 512), nn.GELU(), nn.Linear(512, num_classes)
+            nn.Linear(2 * 128, 64), nn.GELU(), nn.Linear(64, num_classes)
         )
 
         # Define metrics
-        self.train_accuracy = Accuracy(num_classes=num_classes)
-        self.val_accuracy = Accuracy(num_classes=num_classes)
-        self.test_accuracy = Accuracy(num_classes=num_classes)
+        self.train_accuracy = Accuracy(num_classes=num_classes, task="multiclass")
+        self.val_accuracy = Accuracy(num_classes=num_classes, task="multiclass")
+        self.test_accuracy = Accuracy(num_classes=num_classes, task="multiclass")
+
+        self.batch_start_time = time.time()
 
     def forward(self, x):
+        # print(len(x), x[0].shape)
+        print(x[0].device)
         x = [resnext(x_i) for resnext, x_i in zip(self.resnexts, x)]
+        print(x[0].device)
+        # print(len(x), x[0].shape)
         x = th.cat(x, dim=1)
+        print(x.device)
+        # print(x.shape)
         x = self.fc(x)
         return x
 
     def training_step(self, batch, batch_idx):
         x, y, _ = batch
-        logits = self(x)
+        print(x[0].device)
+        batch_load_time = time.time() - self.batch_start_time
+        # print(f"Time to get batch: {batch_load_time:.4f} seconds")
 
+        process_start_time = time.time()
+        logits = self(x)
         loss = self.loss(logits, y)
+        process_time = time.time() - process_start_time
+        # print(f"Time to process batch: {process_time:.4f} seconds")
 
         self.log("train_loss", loss)
         self.log("train_accuracy", self.train_accuracy(logits, y))
+        self.batch_start_time = time.time()
         return loss
 
     def validation_step(self, batch, batch_idx):

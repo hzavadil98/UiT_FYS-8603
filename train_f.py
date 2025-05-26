@@ -99,15 +99,15 @@ def main():
     # figure out if running with mps or gpu or cpu
 
     trainer = pl.Trainer(
-        max_epochs=100,
+        max_epochs=2,
         accelerator=accelerator,
         devices=devices,
         logger=wandb_logger,
         callbacks=[checkpoint_callback, lr_monitor, early_stopping],
         log_every_n_steps=5,
         accumulate_grad_batches=2,
-        # limit_train_batches=3,  # Only 5 training batches per epoch
-        # limit_val_batches=2,
+        limit_train_batches=3,  # Only 5 training batches per epoch
+        limit_val_batches=2,
     )
 
     print("Starting training")
