@@ -40,8 +40,7 @@ def main():
 
     # Initialize DataLoader once before the loop if data is the same for all runs
     dataloader = Synthetic_2v_Dataloader(
-        n_samples=[128, 64, 64],
-        transform=transform,
+        n_samples=[128, 64, 64], transform=transform, batch_size=16
     )
 
     model = TwoViewCNN(num_classes=3)
