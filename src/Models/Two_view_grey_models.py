@@ -194,7 +194,7 @@ class TwoViewCNN(pl.LightningModule):
         self.num_classes = num_classes
         self.num_views = num_views
         self.learning_rate = learning_rate
-        self.confmat_titles = "Confusion Matrix"
+        self.confmat_titles = ["Confusion Matrix"]
         self.save_hyperparameters()
 
         self.loss = nn.CrossEntropyLoss()
@@ -295,7 +295,7 @@ class TwoViewCNN(pl.LightningModule):
             ax.set_xlabel("Predicted")
             ax.set_ylabel("True")
             if len(self.confmat_titles) == 1:
-                ax.set_title(self.confmat_titles)
+                ax.set_title(self.confmat_titles[0])
             else:
                 ax.set_title(self.confmat_titles[i])
 

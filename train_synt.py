@@ -40,7 +40,7 @@ def main():
 
     # Initialize DataLoader once before the loop if data is the same for all runs
     dataloader = Synthetic_2v_Dataloader(
-        n_samples=[128, 64, 64], transform=transform, batch_size=16
+        n_samples=[5000, 1000, 1000], transform=transform, batch_size=16
     )
 
     model = TwoViewCNN(num_classes=3)
@@ -62,7 +62,7 @@ def main():
     # Add profiler
     profiler = PyTorchProfiler(dirpath="./profiler_logs", filename="profile")
     trainer = pl.Trainer(
-        max_epochs=2,
+        max_epochs=50,
         accelerator=accelerator,
         devices=devices,
         logger=wandb_logger,
@@ -70,17 +70,6 @@ def main():
         log_every_n_steps=1,
         profiler=profiler,  # Add profiler to trainer
     )
-
-    print(torch.cuda.memory_summary())
-
-    device = torch.device("cuda:0")  # or 'cuda' if only one GPU
-    allocated = torch.cuda.memory_allocated(device)
-    reserved = torch.cuda.memory_reserved(device)
-    free = reserved - allocated
-
-    print(f"Allocated: {allocated / 1024**2:.2f} MB")
-    print(f"Reserved : {reserved / 1024**2:.2f} MB")
-    print(f"Free     : {free / 1024**2:.2f} MB (within reserved)")
 
     # Train
     trainer.fit(model, dataloader)
