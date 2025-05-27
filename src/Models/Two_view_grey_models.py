@@ -242,7 +242,6 @@ class TwoViewCNN(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         # x, y, _ = batch
         x, y = batch
-        print(x[0].shape, x[1].shape)
         logits = self(x)
         loss = self.loss(logits, y)
 
@@ -253,7 +252,6 @@ class TwoViewCNN(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         # x, y, _ = batch
         x, y = batch
-        print(x[0].shape, x[1].shape)
 
         logits = self(x)
 

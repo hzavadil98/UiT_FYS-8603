@@ -106,12 +106,12 @@ def main():
         save_last=True,
     )
     lr_monitor = LearningRateMonitor(logging_interval="step")
-    early_stopping = EarlyStopping(monitor="val_loss", patience=12, mode="min")
+    early_stopping = EarlyStopping(monitor="val_loss", patience=20, mode="min")
 
     # Add profiler
     # profiler = PyTorchProfiler(dirpath="./profiler_logs", filename="profile") # Temporarily disable profiler
     trainer = pl.Trainer(
-        max_epochs=3,
+        max_epochs=100,
         accelerator=accelerator,
         devices=devices,
         logger=wandb_logger,
