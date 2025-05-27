@@ -17,6 +17,7 @@ def main():
     """
     Training single view featurizer models - 4 of them each on a specific "modality#
     """
+
     # Recognizes if running on my mac or on the server - sets the root_folder and accelerator
     if torch.backends.mps.is_available():
         accelerator = "mps"
@@ -25,6 +26,18 @@ def main():
         accelerator = "gpu"
         devices = torch.cuda.device_count()
         torch.set_float32_matmul_precision("high")
+        torch.cuda.empty_cache()
+        print(torch.cuda.memory_summary())
+
+        # Or just the free and allocated memory in bytes
+        device = torch.device("cuda:0")  # or 'cuda' if only one GPU
+        allocated = torch.cuda.memory_allocated(device)
+        reserved = torch.cuda.memory_reserved(device)
+        free = reserved - allocated
+
+        print(f"Allocated: {allocated / 1024**2:.2f} MB")
+        print(f"Reserved : {reserved / 1024**2:.2f} MB")
+        print(f"Free     : {free / 1024**2:.2f} MB (within reserved)")
     print(f"Using {accelerator} with {devices} devices for training.")
 
     transform = T.Compose(
