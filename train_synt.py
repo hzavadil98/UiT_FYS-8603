@@ -10,7 +10,7 @@ from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.profilers import PyTorchProfiler  # Add this import
 
 import wandb
-from src import Synthetic_2v_Dataloader, TwoViewCNN
+from src import Breast_Cancer_Dataloader, Synthetic_2v_Dataloader, TwoViewCNN
 
 
 def main():
@@ -39,9 +39,58 @@ def main():
     )
 
     # Initialize DataLoader once before the loop if data is the same for all runs
-    dataloader = Synthetic_2v_Dataloader(
-        n_samples=[5000, 1000, 1000], transform=transform, batch_size=16
+    # dataloader = Synthetic_2v_Dataloader(
+    #    n_samples=[5000, 1000, 1000], transform=transform, batch_size=16
+    # )
+    ##########################################################################################################
+    train_transform = T.Compose(
+        [
+            T.ToImage(),
+            # T.RandomRotation(degrees=10),
+            T.ToDtype(torch.float32, scale=True),
+            T.Normalize(
+                mean=[781.0543, 781.0543, 781.0543],
+                std=[1537.8235, 1537.8235, 1537.8235],
+            ),
+            # T.RandomAdjustSharpness(sharpness_factor=1, p=1),
+            # T.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1),
+            T.RandomHorizontalFlip(p=0.5),
+            T.RandomVerticalFlip(p=0.5),
+            # T.RandomRotation(degrees=10),
+            # T.Normalize(
+            #    mean=[0.5, 0.5, 0.5],
+            #    std=[0.7, 0.7, 0.7],
+            # ),
+        ]
     )
+
+    transform = T.Compose(
+        [
+            T.ToImage(),
+            T.ToDtype(torch.float32, scale=True),
+            T.Normalize(
+                mean=[781.0543, 781.0543, 781.0543],
+                std=[1537.8235, 1537.8235, 1537.8235],
+            ),
+            # T.RandomAdjustSharpness(sharpness_factor=1, p=1),
+            # T.Normalize(
+            #    mean=[0.5, 0.5, 0.5],
+            #    std=[0.7, 0.7, 0.7],
+            # ),
+        ]
+    )
+
+    dataloader = Breast_Cancer_Dataloader(
+        root_folder="/storage/Mammo/",
+        annotation_csv="modified_breast-level_annotations.csv",
+        imagefolder_path="New_512",
+        batch_size=32,
+        num_workers=8,
+        train_transform=train_transform,
+        transform=transform,
+    )
+
+    ##########################################################################################################
 
     model = TwoViewCNN(num_classes=3)
 
