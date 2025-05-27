@@ -253,6 +253,8 @@ class TwoViewCNN(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         # x, y, _ = batch
         x, y = batch
+        print(x[0].shape, x[1].shape)
+
         logits = self(x)
 
         self.log("val_loss", self.loss(logits, y))
