@@ -27,17 +27,7 @@ def main():
         devices = torch.cuda.device_count()
         torch.set_float32_matmul_precision("high")
         torch.cuda.empty_cache()
-        print(torch.cuda.memory_summary())
 
-        # Or just the free and allocated memory in bytes
-        device = torch.device("cuda:0")  # or 'cuda' if only one GPU
-        allocated = torch.cuda.memory_allocated(device)
-        reserved = torch.cuda.memory_reserved(device)
-        free = reserved - allocated
-
-        print(f"Allocated: {allocated / 1024**2:.2f} MB")
-        print(f"Reserved : {reserved / 1024**2:.2f} MB")
-        print(f"Free     : {free / 1024**2:.2f} MB (within reserved)")
     print(f"Using {accelerator} with {devices} devices for training.")
 
     transform = T.Compose(
@@ -81,6 +71,17 @@ def main():
         log_every_n_steps=1,
         profiler=profiler,  # Add profiler to trainer
     )
+
+    print(torch.cuda.memory_summary())
+
+    device = torch.device("cuda:0")  # or 'cuda' if only one GPU
+    allocated = torch.cuda.memory_allocated(device)
+    reserved = torch.cuda.memory_reserved(device)
+    free = reserved - allocated
+
+    print(f"Allocated: {allocated / 1024**2:.2f} MB")
+    print(f"Reserved : {reserved / 1024**2:.2f} MB")
+    print(f"Free     : {free / 1024**2:.2f} MB (within reserved)")
 
     # Train
     trainer.fit(model, dataloader)
