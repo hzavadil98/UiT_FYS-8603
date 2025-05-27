@@ -26,7 +26,7 @@ def main():
         accelerator = "gpu"
         devices = torch.cuda.device_count()
         torch.set_float32_matmul_precision("high")
-        torch.cuda.empty_cache()
+        # torch.cuda.empty_cache()
 
     print(f"Using {accelerator} with {devices} devices for training.")
 
