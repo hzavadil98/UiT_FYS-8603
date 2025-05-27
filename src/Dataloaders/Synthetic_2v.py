@@ -260,8 +260,8 @@ class Synthetic_2v_Dataset(Dataset):
     def __getitem__(self, idx):
         view0_path, view1_path = self.image_paths[idx]
 
-        image_view0 = torch.load(view0_path)
-        image_view1 = torch.load(view1_path)
+        image_view0 = torch.load(view0_path, weights_only=True)
+        image_view1 = torch.load(view1_path, weights_only=True)
 
         if self.transform is not None:
             images = [self.transform(image_view0), self.transform(image_view1)]
