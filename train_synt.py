@@ -49,8 +49,8 @@ def main():
             # T.RandomRotation(degrees=10),
             T.ToDtype(torch.float32, scale=True),
             T.Normalize(
-                mean=[781.0543, 781.0543, 781.0543],
-                std=[1537.8235, 1537.8235, 1537.8235],
+                mean=[781.0543],
+                std=[1537.8235],
             ),
             # T.RandomAdjustSharpness(sharpness_factor=1, p=1),
             # T.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1),
@@ -69,8 +69,8 @@ def main():
             T.ToImage(),
             T.ToDtype(torch.float32, scale=True),
             T.Normalize(
-                mean=[781.0543, 781.0543, 781.0543],
-                std=[1537.8235, 1537.8235, 1537.8235],
+                mean=[781.0543],
+                std=[1537.8235],
             ),
             # T.RandomAdjustSharpness(sharpness_factor=1, p=1),
             # T.Normalize(
