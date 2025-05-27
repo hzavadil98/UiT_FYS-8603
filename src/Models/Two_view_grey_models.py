@@ -243,10 +243,7 @@ class TwoViewCNN(pl.LightningModule):
         print(f"Batch: {batch_idx}")
         if batch_idx % 30 == 0:
             print(th.cuda.memory_summary())
-
-        if batch_idx % 100 == 0:
             th.cuda.empty_cache()
-            print("CUDA cache cleared")
 
         x, y, _ = batch
         batch_load_time = time.time() - self.batch_start_time
