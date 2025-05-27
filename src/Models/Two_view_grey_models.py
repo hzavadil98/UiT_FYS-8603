@@ -240,6 +240,8 @@ class TwoViewCNN(pl.LightningModule):
         return x
 
     def training_step(self, batch, batch_idx):
+        print(f"Batch: {batch_idx}")
+        print(th.cuda.memory_summary())
         x, y, _ = batch
         batch_load_time = time.time() - self.batch_start_time
         # print(f"Time to get batch: {batch_load_time:.4f} seconds")
