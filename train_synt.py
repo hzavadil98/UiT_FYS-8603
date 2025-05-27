@@ -84,7 +84,7 @@ def main():
         root_folder="/storage/Mammo/",
         annotation_csv="modified_breast-level_annotations.csv",
         imagefolder_path="New_512",
-        batch_size=32,
+        batch_size=16,
         num_workers=8,
         train_transform=train_transform,
         transform=transform,
