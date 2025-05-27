@@ -333,6 +333,7 @@ class Synthetic_2v_Dataloader(pl.LightningDataModule):
             shuffle=True,
             num_workers=self.num_workers,
             persistent_workers=True,
+            pin_memory=True,
         )
 
     def val_dataloader(self):
@@ -342,6 +343,7 @@ class Synthetic_2v_Dataloader(pl.LightningDataModule):
             shuffle=False,
             num_workers=self.num_workers,
             persistent_workers=True,
+            pin_memory=True,
         )
 
     def test_dataloader(self):
@@ -351,6 +353,7 @@ class Synthetic_2v_Dataloader(pl.LightningDataModule):
             shuffle=False,
             num_workers=self.num_workers,
             persistent_workers=True,
+            pin_memory=True,
         )
 
 
