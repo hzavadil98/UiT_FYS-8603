@@ -46,7 +46,7 @@ def main():
     model = TwoViewCNN(num_classes=3)
 
     wandb_logger = WandbLogger(project="Synthetic data", log_model="best")
-    wandb_logger.watch(model, log="all", log_freq=1)
+    # wandb_logger.watch(model, log="all", log_freq=1) # Temporarily disable watch
 
     checkpoint_callback = ModelCheckpoint(
         dirpath="checkpoints/",
@@ -60,7 +60,7 @@ def main():
     early_stopping = EarlyStopping(monitor="val_loss", patience=12, mode="min")
 
     # Add profiler
-    profiler = PyTorchProfiler(dirpath="./profiler_logs", filename="profile")
+    # profiler = PyTorchProfiler(dirpath="./profiler_logs", filename="profile") # Temporarily disable profiler
     trainer = pl.Trainer(
         max_epochs=50,
         accelerator=accelerator,
@@ -68,7 +68,7 @@ def main():
         logger=wandb_logger,
         callbacks=[checkpoint_callback, lr_monitor, early_stopping],
         log_every_n_steps=1,
-        profiler=profiler,  # Add profiler to trainer
+        # profiler=profiler,  # Temporarily disable profiler
     )
 
     # Train

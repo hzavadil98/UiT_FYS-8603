@@ -241,9 +241,9 @@ class TwoViewCNN(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         print(f"Batch: {batch_idx}")
-        if batch_idx % 30 == 0:
-            print(th.cuda.memory_summary())
-            th.cuda.empty_cache()
+        # if batch_idx % 30 == 0: # Temporarily remove manual CUDA calls
+        #     print(th.cuda.memory_summary())
+        #     th.cuda.empty_cache()
 
         x, y, _ = batch
         batch_load_time = time.time() - self.batch_start_time
