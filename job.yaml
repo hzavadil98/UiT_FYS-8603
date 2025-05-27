@@ -32,6 +32,6 @@ spec:
       - name: storage
         persistentVolumeClaim:
           claimName: storage
-      restartPolicy: OnFailure
+      restartPolicy: Never
   backoffLimit: 0
 #gtx-1080-ti, rtx-2080-ti, rtx-3090, or rtx-A6000

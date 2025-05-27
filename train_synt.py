@@ -40,7 +40,7 @@ def main():
 
     # Initialize DataLoader once before the loop if data is the same for all runs
     dataloader = Synthetic_2v_Dataloader(
-        n_samples=[5000, 1000, 1000], transform=transform, batch_size=8
+        n_samples=[5000, 1000, 1000], transform=transform, batch_size=32
     )
 
     model = TwoViewCNN(num_classes=3)
@@ -62,12 +62,12 @@ def main():
     # Add profiler
     # profiler = PyTorchProfiler(dirpath="./profiler_logs", filename="profile") # Temporarily disable profiler
     trainer = pl.Trainer(
-        max_epochs=50,
+        max_epochs=3,
         accelerator=accelerator,
         devices=devices,
         logger=wandb_logger,
         callbacks=[checkpoint_callback, lr_monitor, early_stopping],
-        log_every_n_steps=1,
+        log_every_n_steps=10,
         # profiler=profiler,  # Temporarily disable profiler
     )
 
