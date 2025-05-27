@@ -209,7 +209,7 @@ class TwoViewCNN(pl.LightningModule):
             self.resnexts.append(
                 ResNeXt(
                     cardinality=4,
-                    depth=20,
+                    depth=11,
                     nlabels=num_classes,
                     base_width=2,
                     widen_factor=2,
