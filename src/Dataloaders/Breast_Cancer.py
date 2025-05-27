@@ -110,7 +110,7 @@ class Breast_Cancer_Dataset(Dataset):
             try:
                 image = dcmread(image_path).pixel_array
                 image = np.array(image, dtype=np.float32)
-                image = np.repeat(image[:, :, np.newaxis], 3, axis=2)
+                # image = np.repeat(image[:, :, np.newaxis], 3, axis=2)
                 if self.transforms is not None:
                     image = self.transforms(image)
                 images.append(image)
