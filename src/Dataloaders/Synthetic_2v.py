@@ -63,6 +63,7 @@ class Synthetic_2v_Dataset(Dataset):
             self.image_paths.append((view0_path, view1_path))
 
             image_tensors = self.generate_image(i)  # This still returns tensors
+            # save the images in
 
             torch.save(image_tensors[0], self.image_paths[i][0])  # Save view 0
             torch.save(image_tensors[1], self.image_paths[i][1])  # Save view 1
@@ -242,8 +243,7 @@ class Synthetic_2v_Dataset(Dataset):
         transform = T.Compose(
             [
                 T.Resize((self.img_size, self.img_size)),  # expects (C, H, W)
-                T.ToImage(),
-                T.ToDtype(torch.float32, scale=True),  # convert to float32
+                T.Normalize(mean=[0], std=[255.0]),  # Normalize to [0, 1]
             ]
         )
 

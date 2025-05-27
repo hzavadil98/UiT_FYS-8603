@@ -194,7 +194,7 @@ class TwoViewCNN(pl.LightningModule):
         self.num_classes = num_classes
         self.num_views = num_views
         self.learning_rate = learning_rate
-        self.confmat_titles = ["Confusion Matrix"]
+        self.confmat_titles = "Confusion Matrix"
         self.save_hyperparameters()
 
         self.loss = nn.CrossEntropyLoss()
@@ -232,19 +232,15 @@ class TwoViewCNN(pl.LightningModule):
 
     def forward(self, x):
         # print(len(x), x[0].shape)
-        print(x[0].device)
         x = [resnext(x_i) for resnext, x_i in zip(self.resnexts, x)]
-        print(x[0].device)
         # print(len(x), x[0].shape)
         x = th.cat(x, dim=1)
-        print(x.device)
         # print(x.shape)
         x = self.fc(x)
         return x
 
     def training_step(self, batch, batch_idx):
         x, y, _ = batch
-        print(x[0].device)
         batch_load_time = time.time() - self.batch_start_time
         # print(f"Time to get batch: {batch_load_time:.4f} seconds")
 
