@@ -92,7 +92,7 @@ def main():
 
     ##########################################################################################################
 
-    model = TwoViewCNN(num_classes=3)
+    model = TwoViewCNN(num_classes=5)
 
     wandb_logger = WandbLogger(project="Synthetic data", log_model="best")
     # wandb_logger.watch(model, log="all", log_freq=1) # Temporarily disable watch
