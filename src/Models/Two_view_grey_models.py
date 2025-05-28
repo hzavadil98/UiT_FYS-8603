@@ -10,10 +10,11 @@ from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.utilities import rank_zero_only
 from torchmetrics.classification import Accuracy, MulticlassConfusionMatrix
 
+# from torchvision.models._utils import _ovewrite_named_param
+from torchvision.models.resnet import Bottleneck, ResNet
+
 import wandb
 
-# from torchvision.models._utils import _ovewrite_named_param
-# from torchvision.models.resnet import Bottleneck, ResNet
 # from torchvision.utils import _log_api_usage_once
 
 
