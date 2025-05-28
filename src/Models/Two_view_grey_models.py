@@ -77,8 +77,7 @@ class MyResNet(ResNet):
         sys.stdout.flush()
 
         self.layer1 = self._make_layer(block, self.inplanes, layers[0])
-        print(f"[TRAIN_SYNT_DEBUG] after calling _make_layer")
-        sys.stdout.flush()
+
         self.layer2 = self._make_layer(
             block,
             self.inplanes * 2,
@@ -86,6 +85,8 @@ class MyResNet(ResNet):
             stride=2,
             dilate=replace_stride_with_dilation[0],
         )
+        print(f"[TRAIN_SYNT_DEBUG] after calling _make_layer 2")
+        sys.stdout.flush()
         self.layer3 = self._make_layer(
             block,
             self.inplanes * 4,
@@ -100,6 +101,7 @@ class MyResNet(ResNet):
             stride=2,
             dilate=replace_stride_with_dilation[2],
         )
+
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(128 * block.expansion, num_classes)
         print(f"[TRAIN_SYNT_DEBUG] after calling _make_layer")
