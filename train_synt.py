@@ -11,6 +11,8 @@ from pytorch_lightning.loggers import WandbLogger
 import wandb
 from src import Synthetic_2v_Dataloader, TwoViewCNN
 
+print("Using custom TwoViewCNN model for synthetic data.")
+
 
 def main():
     """
