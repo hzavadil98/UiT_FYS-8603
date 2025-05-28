@@ -1,4 +1,5 @@
 import time
+from typing import Any, Callable, Optional, Union
 
 import matplotlib.pyplot as plt
 import pytorch_lightning as pl
@@ -10,8 +11,6 @@ from pytorch_lightning.utilities import rank_zero_only
 from torchmetrics.classification import Accuracy, MulticlassConfusionMatrix
 
 import wandb
-
-# from typing import Any, Callable, Optional, Union
 
 # from torchvision.models._utils import _ovewrite_named_param
 # from torchvision.models.resnet import Bottleneck, ResNet
