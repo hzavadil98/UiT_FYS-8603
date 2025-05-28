@@ -14,7 +14,7 @@ from torchvision.models.resnet import Bottleneck, ResNet
 
 import wandb
 
-# from torchvision.utils import _log_api_usage_once
+print("Using custom ResNet model for two-view CNN.")
 
 
 class MyResNet(ResNet):
@@ -41,7 +41,6 @@ class MyResNet(ResNet):
             replace_stride_with_dilation,
             norm_layer,
         )
-        # _log_api_usage_once(self)
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
         self._norm_layer = norm_layer
