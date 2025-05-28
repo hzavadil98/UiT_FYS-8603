@@ -77,6 +77,8 @@ class MyResNet(ResNet):
         sys.stdout.flush()
 
         self.layer1 = self._make_layer(block, self.inplanes, layers[0])
+        print(f"[TRAIN_SYNT_DEBUG] after calling _make_layer")
+        sys.stdout.flush()
         self.layer2 = self._make_layer(
             block,
             self.inplanes * 2,
@@ -116,9 +118,6 @@ class MyResNet(ResNet):
             for m in self.modules():
                 if isinstance(m, Bottleneck) and m.bn3.weight is not None:
                     nn.init.constant_(m.bn3.weight, 0)  # type: ignore[arg-type]
-
-        print(f"[TRAIN_SYNT_DEBUG] End of MyResNet init")
-        sys.stdout.flush()
 
 
 def resnext29_16x4d(*, weights=None, progress: bool = True, **kwargs: Any) -> ResNet:
