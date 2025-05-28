@@ -1,5 +1,3 @@
-print("Loading libraries...")
-
 import pytorch_lightning as pl
 import torch
 import torchvision.transforms.v2 as T
@@ -17,7 +15,7 @@ from src import Breast_Cancer_Dataloader, Synthetic_2v_Dataloader, TwoViewCNN
 
 def main():
     """
-    Training single view featurizer models - 4 of them each on a specific "modality#
+    Training single view featurizer models - 4 of them each on a specific "modality"
     """
     print("Starting training of two view model on synthetic data.")
     # Recognizes if running on my mac or on the server - sets the root_folder and accelerator
