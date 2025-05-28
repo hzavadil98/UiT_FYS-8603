@@ -1,5 +1,4 @@
 import time
-from typing import Any, Callable, Optional, Union
 
 import matplotlib.pyplot as plt
 import pytorch_lightning as pl
@@ -9,11 +8,14 @@ import torch.nn as nn
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.utilities import rank_zero_only
 from torchmetrics.classification import Accuracy, MulticlassConfusionMatrix
-from torchvision.models._utils import _ovewrite_named_param
-from torchvision.models.resnet import Bottleneck, ResNet
-from torchvision.utils import _log_api_usage_once
 
 import wandb
+
+# from typing import Any, Callable, Optional, Union
+
+# from torchvision.models._utils import _ovewrite_named_param
+# from torchvision.models.resnet import Bottleneck, ResNet
+# from torchvision.utils import _log_api_usage_once
 
 
 class MyResNet(ResNet):
