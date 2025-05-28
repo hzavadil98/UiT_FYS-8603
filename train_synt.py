@@ -7,10 +7,9 @@ from pytorch_lightning.callbacks import (
     ModelCheckpoint,
 )
 from pytorch_lightning.loggers import WandbLogger
-from pytorch_lightning.profilers import PyTorchProfiler  # Add this import
 
 import wandb
-from src import Breast_Cancer_Dataloader, Synthetic_2v_Dataloader, TwoViewCNN
+from src import Synthetic_2v_Dataloader, TwoViewCNN
 
 
 def main():

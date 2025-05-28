@@ -6,10 +6,8 @@ import pytorch_lightning as pl
 import seaborn as sns
 import torch as th
 import torch.nn as nn
-import torch.nn.functional as F
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.utilities import rank_zero_only
-from torch.nn import init
 from torchmetrics.classification import Accuracy, MulticlassConfusionMatrix
 from torchvision.models._utils import _ovewrite_named_param
 from torchvision.models.resnet import Bottleneck, ResNet
