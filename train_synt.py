@@ -58,8 +58,10 @@ try:
     sys.stdout.flush()
 
     print("[TRAIN_SYNT_DEBUG] All modules imported successfully.")
+    sys.stdout.flush()  # Added flush
 
     print("Using custom TwoViewCNN model for synthetic data.")  # Original print
+    sys.stdout.flush()  # Added flush
 
     def main():
         """
@@ -230,6 +232,7 @@ try:
 
     if __name__ == "__main__":
         print("[TRAIN_SYNT_DEBUG] __main__ block started.")
+        sys.stdout.flush()  # Added flush
         main()
         print("[TRAIN_SYNT_DEBUG] __main__ block completed.")
 
