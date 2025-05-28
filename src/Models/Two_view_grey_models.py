@@ -42,6 +42,8 @@ class MyResNet(ResNet):
             replace_stride_with_dilation,
             norm_layer,
         )
+        print(f"[TRAIN_SYNT_DEBUG] Inside init of myresnet")
+        sys.stdout.flush()
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
         self._norm_layer = norm_layer
@@ -72,6 +74,10 @@ class MyResNet(ResNet):
         self.bn1 = norm_layer(self.inplanes)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+
+        print(f"[TRAIN_SYNT_DEBUG] before calling _make_layer")
+        sys.stdout.flush()
+
         self.layer1 = self._make_layer(block, self.inplanes, layers[0])
         self.layer2 = self._make_layer(
             block,
