@@ -112,7 +112,7 @@ def main():
     # Add profiler
     # profiler = PyTorchProfiler(dirpath="./profiler_logs", filename="profile") # Temporarily disable profiler
     trainer = pl.Trainer(
-        max_epochs=30,
+        max_epochs=10,
         accelerator=accelerator,
         devices=devices,
         logger=wandb_logger,
