@@ -1,10 +1,31 @@
+import os  # Added for path manipulation and checks
 import sys  # For detailed exception info
 import traceback
+
+# --- Start of new pre-flight checks ---
+print("[TRAIN_SYNT_DEBUG] TOP OF SCRIPT: Initial sys.path:", sys.path)
+print(
+    "[TRAIN_SYNT_DEBUG] TOP OF SCRIPT: Current working directory (os.getcwd()):",
+    os.getcwd(),
+)
+script_dir = os.path.dirname(os.path.abspath(__file__))
+print(
+    "[TRAIN_SYNT_DEBUG] TOP OF SCRIPT: Script directory (os.path.dirname(os.path.abspath(__file__))):",
+    script_dir,
+)
+if script_dir not in sys.path:
+    print(
+        f"[TRAIN_SYNT_DEBUG] TOP OF SCRIPT: Adding script directory {script_dir} to sys.path."
+    )
+    sys.path.insert(0, script_dir)  # Add to front for priority
+print("[TRAIN_SYNT_DEBUG] TOP OF SCRIPT: Modified sys.path:", sys.path)
+sys.stdout.flush()  # Force flush before any risky imports
+# --- End of new pre-flight checks ---
 
 print("[TRAIN_SYNT_DEBUG] Script execution started.")
 
 try:
-    print("[TRAIN_SYNT_DEBUG] Attempting to import modules...")
+    print("[TRAIN_SYNT_DEBUG] Attempting to import standard modules...")
     import pytorch_lightning as pl
     import torch
     import torchvision.transforms.v2 as T
@@ -16,10 +37,25 @@ try:
     from pytorch_lightning.loggers import WandbLogger
 
     import wandb
+
+    print("[TRAIN_SYNT_DEBUG] Standard modules imported successfully.")
+    sys.stdout.flush()
+
+    print("[TRAIN_SYNT_DEBUG] Attempting to import from 'src'...")
+    # Check if src directory exists relative to script_dir, just for sanity
+    src_path_check = os.path.join(script_dir, "src")
+    print(
+        f"[TRAIN_SYNT_DEBUG] Checking for src directory at: {src_path_check}, Exists: {os.path.isdir(src_path_check)}"
+    )
+    sys.stdout.flush()
+
     from src import (  # This is a potential point of failure if src or its contents are not found
         Synthetic_2v_Dataloader,
         TwoViewCNN,
     )
+
+    print("[TRAIN_SYNT_DEBUG] Successfully imported from 'src'.")
+    sys.stdout.flush()
 
     print("[TRAIN_SYNT_DEBUG] All modules imported successfully.")
 

@@ -255,3 +255,9 @@ class TwoViewCNN(pl.LightningModule):
             if isinstance(self.logger, WandbLogger):
                 wandb.log({self.confmat_titles[i]: wandb.Image(fig)})
                 plt.close(fig)
+
+
+if __name__ == "__main__":
+    print(
+        "This is a module for TwoViewCNN model. It should not be run directly. and fuck of"
+    )
