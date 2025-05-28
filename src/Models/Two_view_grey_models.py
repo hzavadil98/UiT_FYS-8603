@@ -1,3 +1,4 @@
+import sys
 import time
 from typing import Any, Callable, Optional, Union
 
@@ -154,6 +155,9 @@ class TwoViewCNN(pl.LightningModule):
 
         self.resnexts = nn.ModuleList()
         for _ in range(num_views):
+            print(f"[TRAIN_SYNT_DEBUG] Appending resnext {_}")
+            sys.stdout.flush()
+
             self.resnexts.append(
                 #        ResNeXt(
                 #            cardinality=4,
@@ -163,6 +167,7 @@ class TwoViewCNN(pl.LightningModule):
                 #            widen_factor=2,
                 resnext29_16x4d(
                     weights=None,
+                    progress=True,
                     num_classes=num_classes,
                     input_channels=input_channels,
                     inplanes=resnext_inplanes,
