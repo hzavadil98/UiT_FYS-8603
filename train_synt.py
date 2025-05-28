@@ -39,10 +39,11 @@ def main():
     )
 
     # Initialize DataLoader once before the loop if data is the same for all runs
-    # dataloader = Synthetic_2v_Dataloader(
-    #    n_samples=[5000, 1000, 1000], transform=transform, batch_size=16
-    # )
+    dataloader = Synthetic_2v_Dataloader(
+        n_samples=[5000, 1000, 1000], transform=transform, batch_size=16
+    )
     ##########################################################################################################
+    """
     train_transform = T.Compose(
         [
             T.ToImage(),
@@ -89,10 +90,10 @@ def main():
         train_transform=train_transform,
         transform=transform,
     )
-
+    """
     ##########################################################################################################
 
-    model = TwoViewCNN(num_classes=5)
+    model = TwoViewCNN(num_classes=3)
 
     wandb_logger = WandbLogger(project="Synthetic data", log_model="best")
     # wandb_logger.watch(model, log="all", log_freq=1) # Temporarily disable watch
@@ -106,12 +107,12 @@ def main():
         save_last=True,
     )
     lr_monitor = LearningRateMonitor(logging_interval="step")
-    early_stopping = EarlyStopping(monitor="val_loss", patience=20, mode="min")
+    early_stopping = EarlyStopping(monitor="val_loss", patience=2, mode="min")
 
     # Add profiler
     # profiler = PyTorchProfiler(dirpath="./profiler_logs", filename="profile") # Temporarily disable profiler
     trainer = pl.Trainer(
-        max_epochs=100,
+        max_epochs=5,
         accelerator=accelerator,
         devices=devices,
         logger=wandb_logger,
