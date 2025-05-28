@@ -42,8 +42,6 @@ class MyResNet(ResNet):
             replace_stride_with_dilation,
             norm_layer,
         )
-        print(f"[TRAIN_SYNT_DEBUG] Inside init of myresnet")
-        sys.stdout.flush()
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
         self._norm_layer = norm_layer
@@ -102,7 +100,8 @@ class MyResNet(ResNet):
         )
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(128 * block.expansion, num_classes)
-
+        print(f"[TRAIN_SYNT_DEBUG] after calling _make_layer")
+        sys.stdout.flush()
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
@@ -117,6 +116,9 @@ class MyResNet(ResNet):
             for m in self.modules():
                 if isinstance(m, Bottleneck) and m.bn3.weight is not None:
                     nn.init.constant_(m.bn3.weight, 0)  # type: ignore[arg-type]
+
+        print(f"[TRAIN_SYNT_DEBUG] End of MyResNet init")
+        sys.stdout.flush()
 
 
 def resnext29_16x4d(*, weights=None, progress: bool = True, **kwargs: Any) -> ResNet:
