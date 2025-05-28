@@ -9,8 +9,7 @@ from pytorch_lightning.callbacks import (
 from pytorch_lightning.loggers import WandbLogger
 
 import wandb
-
-# from src import Synthetic_2v_Dataloader, TwoViewCNN
+from src import Synthetic_2v_Dataloader  # , TwoViewCNN
 
 
 def main():
