@@ -97,6 +97,9 @@ class MyResNet(ResNet):
             dilate=replace_stride_with_dilation[1],
         )
         print(f"[TRAIN_SYNT_DEBUG] after calling _make_layer 3")
+        print(
+            f"block: {block}, layers: {layers[3]}, inplanes: {self.inplanes * 8}, dilate = {replace_stride_with_dilation[2]}"
+        )
         sys.stdout.flush()
         self.layer4 = self._make_layer(
             block,
