@@ -76,13 +76,13 @@ class MyResNet(ResNet):
         print(f"[TRAIN_SYNT_DEBUG] before calling _make_layer")
         sys.stdout.flush()
 
-        self.layer1 = self._make_layer(block, self.inplanes, layers[0])
+        self.layer1 = self._make_layer(block, inplanes, layers[0])
 
         print(f"[TRAIN_SYNT_DEBUG] after calling _make_layer 1")
         sys.stdout.flush()
         self.layer2 = self._make_layer(
             block,
-            self.inplanes * 2,
+            inplanes * 2,
             layers[1],
             stride=2,
             dilate=replace_stride_with_dilation[0],
@@ -91,7 +91,7 @@ class MyResNet(ResNet):
         sys.stdout.flush()
         self.layer3 = self._make_layer(
             block,
-            self.inplanes * 4,
+            inplanes * 4,
             layers[2],
             stride=2,
             dilate=replace_stride_with_dilation[1],
@@ -103,7 +103,7 @@ class MyResNet(ResNet):
         sys.stdout.flush()
         self.layer4 = self._make_layer(
             block,
-            self.inplanes * 8,
+            inplanes * 8,
             layers[3],
             stride=2,
             dilate=replace_stride_with_dilation[2],
