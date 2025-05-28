@@ -1,3 +1,5 @@
+print("Loading libraries...")
+
 import pytorch_lightning as pl
 import torch
 import torchvision.transforms.v2 as T
