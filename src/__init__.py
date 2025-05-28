@@ -7,7 +7,6 @@ __all__ = [
     "Two_view_model",
     "Breast_Cancer_Dataloader",
     "TwoViewCNN",
-    "ResNeXt",
     "Synthetic_2v_Dataloader",
 ]
 
@@ -21,4 +20,4 @@ from .Models.Multiview_cancer_models import (
     Two_view_model,
 )
 from .Models.Separate_view_models import Four_view_single_featurizer
-from .Models.Two_view_grey_models import ResNeXt, TwoViewCNN
+from .Models.Two_view_grey_models import TwoViewCNN
