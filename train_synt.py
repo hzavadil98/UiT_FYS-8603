@@ -100,12 +100,12 @@ def main():
     run_name = f"Synth_data_task_{model.task}"
 
     # Set WANDB_CODE_DIR to save all code in the current directory and subdirectories
-    # os.environ["WANDB_CODE_DIR"] = "."
+    os.environ["WANDB_CODE_DIR"] = "."
 
     wandb_logger = WandbLogger(
         project="Synthetic data", log_model="best", name=run_name
     )
-    wandb.run.log_code(".")
+    # wandb.run.log_code(".")
     # wandb_logger.watch(model, log="all", log_freq=1) # Temporarily disable watch
 
     checkpoint_callback = ModelCheckpoint(
