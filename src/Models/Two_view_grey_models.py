@@ -8,7 +8,7 @@ import torch as th
 import torch.nn as nn
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.utilities import rank_zero_only
-from torchmetrics.classification import Accuracy, MulticlassConfusionMatrix
+from torchmetrics.classification import Accuracy, F1Score, MulticlassConfusionMatrix
 from torchvision.models._utils import _ovewrite_named_param
 from torchvision.models.resnet import Bottleneck, ResNet
 
@@ -154,12 +154,6 @@ class TwoViewCNN(pl.LightningModule):
         self.resnexts = nn.ModuleList()
         for _ in range(num_views):
             self.resnexts.append(
-                #        ResNeXt(
-                #            cardinality=4,
-                #            depth=11,
-                #            nlabels=num_classes,
-                #            base_width=2,
-                #            widen_factor=2,
                 resnext29_16x4d(
                     weights=None,
                     progress=True,
@@ -170,18 +164,30 @@ class TwoViewCNN(pl.LightningModule):
             )
         # change the classifier layer to identity
         for resnext in self.resnexts:
-            #    resnext.classifier = nn.Identity()
             resnext.fc = nn.Identity()
         self.fc = nn.Sequential(
             nn.Linear(2 * 512, 64), nn.ReLU(), nn.Linear(64, num_classes)
         )
 
         # Define metrics
-        self.train_accuracy = Accuracy(num_classes=num_classes, task="multiclass")
-        self.val_accuracy = Accuracy(num_classes=num_classes, task="multiclass")
-        self.test_accuracy = Accuracy(num_classes=num_classes, task="multiclass")
-
-        self.batch_start_time = time.time()
+        self.train_accuracy = Accuracy(
+            num_classes=num_classes, task="multiclass", average="macro"
+        )
+        self.val_accuracy = Accuracy(
+            num_classes=num_classes, task="multiclass", average="macro"
+        )
+        self.test_accuracy = Accuracy(
+            num_classes=num_classes, task="multiclass", average="macro"
+        )
+        self.train_f1 = F1Score(
+            num_classes=num_classes, task="multiclass", average="macro"
+        )
+        self.val_f1 = F1Score(
+            num_classes=num_classes, task="multiclass", average="macro"
+        )
+        self.test_f1 = F1Score(
+            num_classes=num_classes, task="multiclass", average="macro"
+        )
 
     def forward(self, x):
         # print(len(x), x[0].shape)
@@ -201,6 +207,7 @@ class TwoViewCNN(pl.LightningModule):
 
         self.log("train_loss", loss)
         self.log("train_accuracy", self.train_accuracy(logits, y))
+        self.log("train_f1", self.train_f1(logits, y))
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -211,6 +218,7 @@ class TwoViewCNN(pl.LightningModule):
 
         self.log("val_loss", self.loss(logits, y))
         self.log("val_accuracy", self.val_accuracy(logits, y))
+        self.log("val_f1", self.val_f1(logits, y))
 
     def test_step(self, batch, batch_idx):
         x, y1, y2 = batch
@@ -220,9 +228,22 @@ class TwoViewCNN(pl.LightningModule):
 
         self.log("test_loss", self.loss(logits, y))
         self.log("test_accuracy", self.test_accuracy(logits, y))
+        self.log("test_f1", self.test_f1(logits, y))
 
         # Update confusion matrix
         self.confusion_matrix[0].update(th.argmax(logits, dim=1), y)
+
+    def predict_step(self, batch):
+        x, y1, y2 = batch
+        logits = self(x)
+        preds = th.argmax(logits, dim=1)
+        return preds
+
+    def get_features(self, batch):
+        x, y1, y2 = batch
+        features = [resnext(x_i) for resnext, x_i in zip(self.resnexts, x)]
+
+        return features
 
     def configure_optimizers(self):
         optimizer = th.optim.Adam(self.parameters(), lr=self.learning_rate)
