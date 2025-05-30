@@ -1,12 +1,12 @@
 kind: Job
 apiVersion: batch/v1
 metadata:
-  name: train1
+  name: train
 spec:
   template:
     spec:
       nodeSelector:
-        springfield.uit.no/gpu-type: gtx-1080-ti
+        springfield.uit.no/gpu-type: rtx-3090
       hostIPC: true
       containers:
       - name: train

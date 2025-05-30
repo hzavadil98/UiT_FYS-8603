@@ -165,7 +165,7 @@ class Synthetic_2v_Dataset(Dataset):
             case _:
                 print("Wrong class label")
 
-        sigma = 1
+        sigma = 2
         task1_indiv1 = [
             np.random.normal(loc=task1_indiv1[0], scale=sigma),
             np.random.normal(loc=task1_indiv1[1], scale=sigma),
@@ -198,7 +198,7 @@ class Synthetic_2v_Dataset(Dataset):
             random.uniform(task1_shared[1][0], task1_shared[1][1]),
             random.random(),
         ]"""
-        sigma = 0.23
+        sigma = 0.5
         task2_indiv1 = random.uniform(
             task2_indiv1[0][0], task2_indiv1[0][1]
         ) * np.array(
