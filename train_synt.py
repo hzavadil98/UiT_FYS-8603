@@ -95,19 +95,18 @@ def main():
     """
     ##########################################################################################################
     model = TwoViewCNN(
-        num_classes=3, task=1, num_views=2, input_channels=1, resnext_inplanes=16
+        num_classes=3, task=2, num_views=2, input_channels=1, resnext_inplanes=16
     )
     run_name = f"Synth_data_task_{model.task}"
 
     # Set WANDB_CODE_DIR to save all code in the current directory and subdirectories
     os.environ["WANDB_CODE_DIR"] = "."
-    wandb_logger = WandbLogger(
-        project="Synthetic data", log_model="best", name=run_name
-    )
+    wandb_logger = WandbLogger(project="Synthetic data", log_model=True, name=run_name)
+    # wandb_logger.watch(model, log="best", log_freq=5)
 
     checkpoint_callback = ModelCheckpoint(
         dirpath="checkpoints/",
-        filename=run_name + "_best_epoch-{epoch:02d}",
+        filename=run_name + "_best",
         save_top_k=1,
         monitor="val_loss",
         mode="min",
