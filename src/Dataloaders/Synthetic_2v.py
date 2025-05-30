@@ -7,6 +7,7 @@ import pytorch_lightning as pl
 import torch
 import torchvision.transforms.v2 as T
 from torch.utils.data import DataLoader, Dataset
+from tqdm import tqdm
 
 
 class Synthetic_2v_Dataset(Dataset):
@@ -57,7 +58,8 @@ class Synthetic_2v_Dataset(Dataset):
         np.save(self.image_save_dir / "parameters.npy", self.parameters)
 
         self.image_paths = []  # Store paths instead of images
-        for i in range(self.n_samples):
+        progress_bar = tqdm(range(self.n_samples), desc="Generating synthetic images")
+        for i in progress_bar:
             view0_path = self.image_save_dir / f"image_{i}_view_0.pt"
             view1_path = self.image_save_dir / f"image_{i}_view_1.pt"
             self.image_paths.append((view0_path, view1_path))
