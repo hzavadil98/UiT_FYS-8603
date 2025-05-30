@@ -198,7 +198,7 @@ class Synthetic_2v_Dataset(Dataset):
             random.uniform(task1_shared[1][0], task1_shared[1][1]),
             random.random(),
         ]"""
-        sigma = 0.5
+        sigma = 0.42
         task2_indiv1 = random.uniform(
             task2_indiv1[0][0], task2_indiv1[0][1]
         ) * np.array(

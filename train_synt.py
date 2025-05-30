@@ -95,7 +95,7 @@ def main():
     """
     ##########################################################################################################
     model = TwoViewCNN(
-        num_classes=3, task=2, num_views=2, input_channels=1, resnext_inplanes=16
+        num_classes=3, task=1, num_views=2, input_channels=1, resnext_inplanes=16
     )
     run_name = f"Synth_data_task_{model.task}"
 
