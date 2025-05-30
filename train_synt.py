@@ -70,7 +70,7 @@ def main():
     )
     ##########################################################################################################
     model = TwoViewCNN(
-        num_classes=5,
+        num_classes=4,
         task=2,
         num_views=2,
         input_channels=1,
