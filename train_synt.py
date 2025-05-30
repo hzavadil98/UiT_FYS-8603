@@ -11,7 +11,20 @@ from pytorch_lightning.callbacks import (
 from pytorch_lightning.loggers import WandbLogger
 
 import wandb
-from src import Synthetic_2v_Dataloader, TwoViewCNN
+from src import Breast_Cancer_Dataloader, Synthetic_2v_Dataloader, TwoViewCNN
+
+train_transform = T.Compose(
+    [
+        T.Normalize(mean=[781.0543], std=[1537.8235]),
+        T.RandomHorizontalFlip(p=0.5),
+        T.RandomVerticalFlip(p=0.5),
+    ]
+)
+transform = T.Compose(
+    [
+        T.Normalize(mean=[781.0543], std=[1537.8235]),
+    ]
+)
 
 
 def main():
@@ -32,83 +45,47 @@ def main():
         accelerator = "cpu"  # Default to CPU if neither is available
         devices = 1
 
-    transform = T.Compose(
-        [
-            T.RandomHorizontalFlip(0.5),
-            T.RandomVerticalFlip(0.5),
-            T.GaussianNoise(0.1, 0.1),
-        ]
-    )
+    # transform = T.Compose(
+    #    [
+    #        T.RandomHorizontalFlip(0.5),
+    #        T.RandomVerticalFlip(0.5),
+    #        T.GaussianNoise(0.1, 0.1),
+    #    ]
+    # )
 
     # Initialize DataLoader once before the loop if data is the same for all runs
-    dataloader = Synthetic_2v_Dataloader(
-        n_samples=[3000, 1000, 1000], transform=transform, batch_size=32
-    )
+    # dataloader = Synthetic_2v_Dataloader(
+    #    n_samples=[3000, 1000, 1000], transform=transform, batch_size=32
+    # )
     ##########################################################################################################
-    """
-    train_transform = T.Compose(
-        [
-            T.ToImage(),
-            # T.RandomRotation(degrees=10),
-            T.ToDtype(torch.float32, scale=True),
-            T.Normalize(
-                mean=[781.0543],
-                std=[1537.8235],
-            ),
-            # T.RandomAdjustSharpness(sharpness_factor=1, p=1),
-            # T.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1),
-            T.RandomHorizontalFlip(p=0.5),
-            T.RandomVerticalFlip(p=0.5),
-            # T.RandomRotation(degrees=10),
-            # T.Normalize(
-            #    mean=[0.5, 0.5, 0.5],
-            #    std=[0.7, 0.7, 0.7],
-            # ),
-        ]
-    )
-
-    transform = T.Compose(
-        [
-            T.ToImage(),
-            T.ToDtype(torch.float32, scale=True),
-            T.Normalize(
-                mean=[781.0543],
-                std=[1537.8235],
-            ),
-            # T.RandomAdjustSharpness(sharpness_factor=1, p=1),
-            # T.Normalize(
-            #    mean=[0.5, 0.5, 0.5],
-            #    std=[0.7, 0.7, 0.7],
-            # ),
-        ]
-    )
 
     dataloader = Breast_Cancer_Dataloader(
         root_folder="/storage/Mammo/",
         annotation_csv="modified_breast-level_annotations.csv",
         imagefolder_path="New_512",
-        batch_size=16,
-        num_workers=8,
+        batch_size=32,
+        num_workers=4,
         train_transform=train_transform,
         transform=transform,
     )
-    """
     ##########################################################################################################
     model = TwoViewCNN(
-        num_classes=3,
-        task=2,
+        num_classes=5,
+        task=1,
         num_views=2,
         input_channels=1,
         resnext_inplanes=16,
         learning_rate=1e-3,
-        scheduler_patience=3,  # Or any other value you prefer
+        scheduler_patience=5,  # Or any other value you prefer
         scheduler_factor=0.2,  # Or any other value you prefer
     )
-    run_name = f"Synth_data_task_{model.task}"
+    run_name = f"Breast_wise_task_{model.task}"
 
     # Set WANDB_CODE_DIR to save all code in the current directory and subdirectories
     os.environ["WANDB_CODE_DIR"] = "."
-    wandb_logger = WandbLogger(project="Synthetic data", log_model=True, name=run_name)
+    wandb_logger = WandbLogger(
+        project="Breast wise ResNeXt", log_model=True, name=run_name
+    )
     # wandb_logger.watch(model, log="best", log_freq=5)
 
     checkpoint_callback = ModelCheckpoint(
@@ -122,12 +99,12 @@ def main():
 
     lr_monitor = LearningRateMonitor(logging_interval="step")
 
-    early_stopping = EarlyStopping(monitor="val_loss", patience=7, mode="min")
+    early_stopping = EarlyStopping(monitor="val_loss", patience=15, mode="min")
 
     # Add profiler
     # profiler = PyTorchProfiler(dirpath="./profiler_logs", filename="profile") # Temporarily disable profiler
     trainer = pl.Trainer(
-        max_epochs=25,
+        max_epochs=50,
         accelerator=accelerator,
         devices=devices,
         logger=wandb_logger,

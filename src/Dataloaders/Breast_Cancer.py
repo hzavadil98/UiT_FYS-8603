@@ -80,9 +80,9 @@ class Breast_Cancer_Dataset(Dataset):
         self.annotation.loc[:, "breast_birads"] = self.annotation["breast_birads"].map(
             self.label_map
         )
-        self.annotation.loc[:, "density"] = self.annotation["density"].map(
-            self.density_map
-        )
+        self.annotation.loc[:, "breast_density"] = self.annotation[
+            "breast_density"
+        ].map(self.density_map)
         # finds two labels for each patient_id - L,R
         self.labels = (
             self.annotation.groupby(["study_id", "laterality"])["breast_birads"]
@@ -91,7 +91,7 @@ class Breast_Cancer_Dataset(Dataset):
         )
         # find two densities for each patient_id - L,R
         self.densities = (
-            self.annotation.groupby(["study_id", "laterality"])["density"]
+            self.annotation.groupby(["study_id", "laterality"])["breast_density"]
             .unique()
             .unstack()
         )
@@ -126,9 +126,8 @@ class Breast_Cancer_Dataset(Dataset):
                 self.root_folder + self.imagefolder_path, image_id + ".dicom"
             )
             try:
-                image = dcmread(image_path).pixel_array
-                image = np.array(image, dtype=np.float32)
-                # image = np.repeat(image[:, :, np.newaxis], 3, axis=2)
+                image = dcmread(image_path).pixel_array.astype(np.float32)
+                image = torch.from_numpy(image).unsqueeze(0)  # Add channel dimension
                 if self.transforms is not None:
                     image = self.transforms(image)
                 images.append(image)
