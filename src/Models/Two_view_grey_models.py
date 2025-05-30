@@ -132,11 +132,15 @@ class TwoViewCNN(pl.LightningModule):
         input_channels=1,
         resnext_inplanes=16,
         learning_rate=1e-3,
+        scheduler_patience=3,  # Default patience
+        scheduler_factor=0.1,  # Default factor
     ):
         super(TwoViewCNN, self).__init__()
         self.num_classes = num_classes
         self.num_views = num_views
         self.learning_rate = learning_rate
+        self.scheduler_patience = scheduler_patience
+        self.scheduler_factor = scheduler_factor
         self.task = task  # 1 for task1, 2 for task2
         self.confmat_titles = ["Confusion Matrix"]
         self.save_hyperparameters()
@@ -246,8 +250,20 @@ class TwoViewCNN(pl.LightningModule):
 
     def configure_optimizers(self):
         optimizer = th.optim.Adam(self.parameters(), lr=self.learning_rate)
-        # scheduler = th.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
-        return [optimizer]
+        scheduler = th.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            mode="min",
+            factor=self.scheduler_factor,
+            patience=self.scheduler_patience,
+            verbose=True,
+        )
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": {
+                "scheduler": scheduler,
+                "monitor": "val_loss",  # Metric to monitor
+            },
+        }
 
     @rank_zero_only
     def on_test_epoch_start(self):

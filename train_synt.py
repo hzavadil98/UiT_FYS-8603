@@ -101,6 +101,8 @@ def main():
         input_channels=1,
         resnext_inplanes=16,
         learning_rate=1e-3,
+        scheduler_patience=3,  # Or any other value you prefer
+        scheduler_factor=0.2,  # Or any other value you prefer
     )
     run_name = f"Synth_data_task_{model.task}"
 
@@ -125,7 +127,7 @@ def main():
     # Add profiler
     # profiler = PyTorchProfiler(dirpath="./profiler_logs", filename="profile") # Temporarily disable profiler
     trainer = pl.Trainer(
-        max_epochs=2,
+        max_epochs=25,
         accelerator=accelerator,
         devices=devices,
         logger=wandb_logger,
