@@ -136,36 +136,36 @@ class Synthetic_2v_Dataset(Dataset):
         match task1:
             case 0:
                 task1_indiv1 = [1, 7.5]
-                task1_indiv2 = [11.5, 1]
+                task1_indiv2 = [9.5, 1]
                 task1_shared = [2, 2]
             case 1:
                 task1_indiv1 = [1, 9.5]
-                task1_indiv2 = [9.5, 1]
-                task1_shared = [5, 5]
-            case 2:
-                task1_indiv1 = [1, 11.5]
                 task1_indiv2 = [7.5, 1]
                 task1_shared = [8, 8]
+            case 2:
+                task1_indiv1 = [1, 11.5]
+                task1_indiv2 = [11.5, 1]
+                task1_shared = [5, 5]
             case _:
                 print("Wrong class label")
 
         match task2:
             case 0:
                 task2_indiv1 = [[1, 2.5], 2, [30 / 180, 60 / 180]]
-                task2_indiv2 = [[3.5, 5], 4, [120 / 180, 150 / 180]]
+                task2_indiv2 = [[3.5, 5], 3, [120 / 180, 150 / 180]]
                 task2_shared = [[1, 5], 2, [-15 / 180, 15 / 180]]
             case 1:
                 task2_indiv1 = [[1, 2.5], 2.5, [30 / 180, 60 / 180]]
-                task2_indiv2 = [[3.5, 5], 3, [120 / 180, 150 / 180]]
-                task2_shared = [[1, 5], 2.5, [-15 / 180, 15 / 180]]
+                task2_indiv2 = [[3.5, 5], 4, [120 / 180, 150 / 180]]
+                task2_shared = [[1, 5], 3, [-15 / 180, 15 / 180]]
             case 2:
                 task2_indiv1 = [[1, 2.5], 3, [30 / 180, 60 / 180]]
                 task2_indiv2 = [[3.5, 5], 2, [120 / 180, 150 / 180]]
-                task2_shared = [[1, 5], 3, [-15 / 180, 15 / 180]]
+                task2_shared = [[1, 5], 2.5, [-15 / 180, 15 / 180]]
             case _:
                 print("Wrong class label")
 
-        sigma = 0.8
+        sigma = 1
         task1_indiv1 = [
             np.random.normal(loc=task1_indiv1[0], scale=sigma),
             np.random.normal(loc=task1_indiv1[1], scale=sigma),
@@ -198,7 +198,7 @@ class Synthetic_2v_Dataset(Dataset):
             random.uniform(task1_shared[1][0], task1_shared[1][1]),
             random.random(),
         ]"""
-        sigma = 0.2
+        sigma = 0.23
         task2_indiv1 = random.uniform(
             task2_indiv1[0][0], task2_indiv1[0][1]
         ) * np.array(
