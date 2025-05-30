@@ -1,4 +1,3 @@
-import sys
 import time
 from typing import Any, Callable, Optional, Union
 
@@ -14,8 +13,6 @@ from torchvision.models._utils import _ovewrite_named_param
 from torchvision.models.resnet import Bottleneck, ResNet
 
 import wandb
-
-print("Using custom ResNet model for two-view CNN.")
 
 
 class MyResNet(ResNet):
@@ -73,13 +70,8 @@ class MyResNet(ResNet):
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
-        print(f"[TRAIN_SYNT_DEBUG] before calling _make_layer")
-        sys.stdout.flush()
-
         self.layer1 = self._make_layer(block, inplanes, layers[0])
 
-        print(f"[TRAIN_SYNT_DEBUG] after calling _make_layer 1")
-        sys.stdout.flush()
         self.layer2 = self._make_layer(
             block,
             inplanes * 2,
@@ -87,8 +79,6 @@ class MyResNet(ResNet):
             stride=2,
             dilate=replace_stride_with_dilation[0],
         )
-        print(f"[TRAIN_SYNT_DEBUG] after calling _make_layer 2")
-        sys.stdout.flush()
         self.layer3 = self._make_layer(
             block,
             inplanes * 4,
@@ -96,11 +86,6 @@ class MyResNet(ResNet):
             stride=2,
             dilate=replace_stride_with_dilation[1],
         )
-        print(f"[TRAIN_SYNT_DEBUG] after calling _make_layer 3")
-        print(
-            f"block: {block}, layers: {layers[3]}, inplanes: {self.inplanes * 8}, dilate = {replace_stride_with_dilation[2]}"
-        )
-        sys.stdout.flush()
         self.layer4 = self._make_layer(
             block,
             inplanes * 8,
@@ -108,12 +93,8 @@ class MyResNet(ResNet):
             stride=2,
             dilate=replace_stride_with_dilation[2],
         )
-        print(f"[TRAIN_SYNT_DEBUG] after calling _make_layer 4")
-        sys.stdout.flush()
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(128 * block.expansion, num_classes)
-        print(f"[TRAIN_SYNT_DEBUG] after calling _make_layer")
-        sys.stdout.flush()
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
@@ -172,9 +153,6 @@ class TwoViewCNN(pl.LightningModule):
 
         self.resnexts = nn.ModuleList()
         for _ in range(num_views):
-            print(f"[TRAIN_SYNT_DEBUG] Appending resnext {_}")
-            sys.stdout.flush()
-
             self.resnexts.append(
                 #        ResNeXt(
                 #            cardinality=4,

@@ -113,6 +113,7 @@ class Synthetic_2v_Dataset(Dataset):
         return image
 
     def generate_random_parameters(self, task1, task2):
+        """
         match task1:
             case 0:
                 task1_indiv1 = [[0, 2], [7, 8]]
@@ -126,6 +127,23 @@ class Synthetic_2v_Dataset(Dataset):
                 task1_indiv1 = [[0, 2], [11, 12]]
                 task1_indiv2 = [[7, 8], [0, 2]]
                 task1_shared = [[7, 9], [7, 9]]
+            case _:
+                print("Wrong class label")
+        """
+
+        match task1:
+            case 0:
+                task1_indiv1 = [1, 7.5]
+                task1_indiv2 = [11.5, 1]
+                task1_shared = [2, 2]
+            case 1:
+                task1_indiv1 = [1, 9.5]
+                task1_indiv2 = [9.5, 1]
+                task1_shared = [5, 5]
+            case 2:
+                task1_indiv1 = [1, 11.5]
+                task1_indiv2 = [7.5, 1]
+                task1_shared = [8, 8]
             case _:
                 print("Wrong class label")
 
@@ -145,6 +163,24 @@ class Synthetic_2v_Dataset(Dataset):
             case _:
                 print("Wrong class label")
 
+        sigma = 0.5
+        task1_indiv1 = [
+            np.random.normal(loc=task1_indiv1[0], scale=sigma),
+            np.random.normal(loc=task1_indiv1[1], scale=sigma),
+            np.random.uniform(0, 1),
+        ]
+        task1_indiv2 = [
+            np.random.normal(loc=task1_indiv2[0], scale=sigma),
+            np.random.normal(loc=task1_indiv2[1], scale=sigma),
+            np.random.uniform(0, 1),
+        ]
+        task1_shared = [
+            np.random.normal(loc=task1_shared[0], scale=1.5 * sigma),
+            np.random.normal(loc=task1_shared[1], scale=1.5 * sigma),
+            np.random.uniform(0, 1),
+        ]
+
+        """
         task1_indiv1 = [
             random.uniform(task1_indiv1[0][0], task1_indiv1[0][1]),
             random.uniform(task1_indiv1[1][0], task1_indiv1[1][1]),
@@ -159,8 +195,25 @@ class Synthetic_2v_Dataset(Dataset):
             random.uniform(task1_shared[0][0], task1_shared[0][1]),
             random.uniform(task1_shared[1][0], task1_shared[1][1]),
             random.random(),
-        ]
+        ]"""
+        sigma = 0.15
+        task2_indiv1 = random.uniform(
+            task2_indiv1[0][0], task2_indiv1[0][1]
+        ) * np.array(
+            [1, np.random.normal(loc=task2_indiv1[1], scale=sigma), 0]
+        ) + np.array([0, 0, random.uniform(task2_indiv1[2][0], task2_indiv1[2][1])])
+        task2_indiv2 = random.uniform(
+            task2_indiv2[0][0], task2_indiv2[0][1]
+        ) * np.array(
+            [1, np.random.normal(loc=task2_indiv2[1], scale=2 * sigma), 0]
+        ) + np.array([0, 0, random.uniform(task2_indiv2[2][0], task2_indiv2[2][1])])
+        task2_shared = random.uniform(
+            task2_shared[0][0], task2_shared[0][1]
+        ) * np.array(
+            [1, np.random.normal(loc=task2_shared[1], scale=sigma), 0]
+        ) + np.array([0, 0, random.uniform(task2_shared[2][0], task2_shared[2][1])])
 
+        """
         task2_indiv1 = random.uniform(
             task2_indiv1[0][0], task2_indiv1[0][1]
         ) * np.array([1, task2_indiv1[1], 0]) + np.array(
@@ -176,6 +229,7 @@ class Synthetic_2v_Dataset(Dataset):
         ) * np.array([1, task2_shared[1], 0]) + np.array(
             [0, 0, random.uniform(task2_shared[2][0], task2_shared[2][1])]
         )
+        """
 
         return [
             task1_indiv1,
@@ -370,7 +424,7 @@ def main():
 
     # Create a DataLoader
     dataloader = Synthetic_2v_Dataloader(
-        n_samples=[1000, 200, 200],
+        n_samples=[100, 50, 50],
         img_size=512,
         batch_size=16,
         num_workers=4,
@@ -380,9 +434,9 @@ def main():
     # Check if the dataloader passes the model
     batch = next(iter(dataloader.train_dataloader()))
     dataset = dataloader.train_dataset
-    images, labels = batch
-    print(f"Batch shape: {images.shape}, Labels shape: {labels.shape}")
-    print(torch.min(images), torch.max(images))
+    images, y1, y2 = batch
+    print(f"Batch shape: {images[0].shape}, Labels: {y1}, {y2}")
+    print(torch.min(images[0]), torch.max(images[0]))
 
     # Plot an example
     dataset.plot(0)
