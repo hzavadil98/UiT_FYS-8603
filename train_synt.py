@@ -1,3 +1,5 @@
+import os  # Add os import
+
 import pytorch_lightning as pl
 import torch
 import torchvision.transforms.v2 as T
@@ -97,9 +99,13 @@ def main():
     )
     run_name = f"Synth_data_task_{model.task}"
 
+    # Set WANDB_CODE_DIR to save all code in the current directory and subdirectories
+    # os.environ["WANDB_CODE_DIR"] = "."
+
     wandb_logger = WandbLogger(
-        project="Synthetic data", log_model="best", name=run_name, code_dir="."
+        project="Synthetic data", log_model="best", name=run_name
     )
+    wandb.run.log_code(".")
     # wandb_logger.watch(model, log="all", log_freq=1) # Temporarily disable watch
 
     checkpoint_callback = ModelCheckpoint(
