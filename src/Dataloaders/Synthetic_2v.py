@@ -165,7 +165,7 @@ class Synthetic_2v_Dataset(Dataset):
             case _:
                 print("Wrong class label")
 
-        sigma = 0.5
+        sigma = 0.8
         task1_indiv1 = [
             np.random.normal(loc=task1_indiv1[0], scale=sigma),
             np.random.normal(loc=task1_indiv1[1], scale=sigma),

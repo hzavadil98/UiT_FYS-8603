@@ -11,8 +11,6 @@ from pytorch_lightning.loggers import WandbLogger
 import wandb
 from src import Synthetic_2v_Dataloader, TwoViewCNN
 
-print("Using custom TwoViewCNN model for synthetic data.")
-
 
 def main():
     """
@@ -95,11 +93,11 @@ def main():
     """
     ##########################################################################################################
     model = TwoViewCNN(
-        num_classes=3, task=2, num_views=2, input_channels=1, resnext_inplanes=16
+        num_classes=3, task=1, num_views=2, input_channels=1, resnext_inplanes=16
     )
 
     wandb_logger = WandbLogger(
-        project="Synthetic data", log_model="best", name="Synthetic data v2 task 2"
+        project="Synthetic data", log_model="best", name="Synthetic data v2 task 1"
     )
     # wandb_logger.watch(model, log="all", log_freq=1) # Temporarily disable watch
 
@@ -114,12 +112,12 @@ def main():
 
     lr_monitor = LearningRateMonitor(logging_interval="step")
 
-    early_stopping = EarlyStopping(monitor="val_loss", patience=4, mode="min")
+    early_stopping = EarlyStopping(monitor="val_loss", patience=5, mode="min")
 
     # Add profiler
     # profiler = PyTorchProfiler(dirpath="./profiler_logs", filename="profile") # Temporarily disable profiler
     trainer = pl.Trainer(
-        max_epochs=10,
+        max_epochs=20,
         accelerator=accelerator,
         devices=devices,
         logger=wandb_logger,
