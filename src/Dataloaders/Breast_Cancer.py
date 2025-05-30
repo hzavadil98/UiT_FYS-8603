@@ -70,9 +70,18 @@ class Breast_Cancer_Dataset(Dataset):
             "BI-RADS 4": 3,
             "BI-RADS 5": 4,
         }
+        self.density_map = {
+            "DENSITY A": 0,
+            "DENSITY B": 1,
+            "DENSITY C": 2,
+            "DENSITY D": 3,
+        }
         # maps the labels to integers
         self.annotation.loc[:, "breast_birads"] = self.annotation["breast_birads"].map(
             self.label_map
+        )
+        self.annotation.loc[:, "density"] = self.annotation["density"].map(
+            self.density_map
         )
         # finds two labels for each patient_id - L,R
         self.labels = (
@@ -80,8 +89,16 @@ class Breast_Cancer_Dataset(Dataset):
             .unique()
             .unstack()
         )
+        # find two densities for each patient_id - L,R
+        self.densities = (
+            self.annotation.groupby(["study_id", "laterality"])["density"]
+            .unique()
+            .unstack()
+        )
+
         # sorts the labels according to the patient_ids
         self.labels = self.labels.reindex(self.patient_ids)
+        self.densities = self.densities.reindex(self.patient_ids)
 
     def __len__(self):
         return 2 * len(self.patient_ids)
@@ -96,6 +113,7 @@ class Breast_Cancer_Dataset(Dataset):
         ]
 
         label = torch.tensor(self.labels.loc[patient_id, laterality][0])
+        density = torch.tensor(self.densities.loc[patient_id, laterality][0])
 
         images = []
 
@@ -118,10 +136,10 @@ class Breast_Cancer_Dataset(Dataset):
                 print(f"Error reading image {image_path}: {e}")
                 continue
 
-        return images, label
+        return images, label, density
 
     def plot(self, idx):
-        images, label = self.__getitem__(idx)
+        images, label, density = self.__getitem__(idx)
         # Transform images to the interval (0, 1)
         images = [
             (image - image.min()) / (image.max() - image.min()) for image in images
@@ -131,7 +149,7 @@ class Breast_Cancer_Dataset(Dataset):
         for i in range(2):
             # axs[i].imshow(images[i].permute(1, 2, 0))
             axs[i].imshow(images[i][0])
-            axs[i].set_title(f"Label: {label.item()}")
+            axs[i].set_title(f"Label: {label.item()}, Density: {density.item()}")
         plt.show()
 
 
