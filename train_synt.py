@@ -72,8 +72,8 @@ def main():
     ##########################################################################################################
     model = TwoViewCNN(
         num_classes=4,
-        task=1,
-        num_views=2,
+        task=2,
+        num_views=1,
         input_channels=1,
         resnext_inplanes=16,
         learning_rate=1e-3,
@@ -84,9 +84,7 @@ def main():
 
     # Set WANDB_CODE_DIR to save all code in the current directory and subdirectories
     os.environ["WANDB_CODE_DIR"] = "."
-    wandb_logger = WandbLogger(
-        project="Breast wise ResNeXt", log_model=True, name=run_name
-    )
+    wandb_logger = WandbLogger(project="Synthetic data", log_model=True, name=run_name)
     # wandb_logger.watch(model, log="best", log_freq=5)
 
     checkpoint_callback = ModelCheckpoint(
