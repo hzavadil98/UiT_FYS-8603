@@ -13,6 +13,7 @@ from pytorch_lightning.loggers import WandbLogger
 import wandb
 from src import Breast_Cancer_Dataloader, Synthetic_2v_Dataloader, TwoViewCNN
 
+"""
 train_transform = T.Compose(
     [
         T.Normalize(mean=[781.0543], std=[1537.8235]),
@@ -24,7 +25,7 @@ transform = T.Compose(
     [
         T.Normalize(mean=[781.0543], std=[1537.8235]),
     ]
-)
+)"""
 
 
 def main():
@@ -72,7 +73,7 @@ def main():
     ##########################################################################################################
     model = TwoViewCNN(
         num_classes=4,
-        task=2,
+        task=1,
         num_views=1,
         input_channels=1,
         resnext_inplanes=16,
@@ -80,7 +81,7 @@ def main():
         scheduler_patience=5,  # Or any other value you prefer
         scheduler_factor=0.2,  # Or any other value you prefer
     )
-    run_name = f"Breast_wise_task_{model.task}"
+    run_name = f"Synth_data_task_{model.task}"
 
     # Set WANDB_CODE_DIR to save all code in the current directory and subdirectories
     os.environ["WANDB_CODE_DIR"] = "."
