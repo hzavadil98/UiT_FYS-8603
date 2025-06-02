@@ -362,6 +362,7 @@ class Synthetic_2v_Dataloader(pl.LightningDataModule):
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.train_transform = train_transform
+        self.transform = transform
         self.image_save_dir = pathlib.Path(image_save_dir)
 
         self.train_dataset = Synthetic_2v_Dataset(
