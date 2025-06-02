@@ -73,7 +73,7 @@ def main():
     ##########################################################################################################
     model = TwoViewCNN(
         num_classes=3,
-        task=2,
+        task=1,
         num_views=2,
         input_channels=1,
         resnext_inplanes=16,
