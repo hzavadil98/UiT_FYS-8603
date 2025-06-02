@@ -74,7 +74,7 @@ def main():
     model = TwoViewCNN(
         num_classes=4,
         task=1,
-        num_views=1,
+        num_views=2,
         input_channels=1,
         resnext_inplanes=16,
         learning_rate=1e-3,
