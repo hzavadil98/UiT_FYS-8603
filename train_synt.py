@@ -45,33 +45,34 @@ def main():
         accelerator = "cpu"  # Default to CPU if neither is available
         devices = 1
 
-    # transform = T.Compose(
-    #    [
-    #        T.RandomHorizontalFlip(0.5),
-    #        T.RandomVerticalFlip(0.5),
-    #        T.GaussianNoise(0.1, 0.1),
-    #    ]
-    # )
-
-    # Initialize DataLoader once before the loop if data is the same for all runs
-    # dataloader = Synthetic_2v_Dataloader(
-    #    n_samples=[3000, 1000, 1000], transform=transform, batch_size=32
-    # )
+    train_transform = T.Compose(
+        [
+            T.RandomHorizontalFlip(0.5),
+            T.RandomVerticalFlip(0.5),
+            T.GaussianNoise(0.1, 0.1),
+        ]
+    )
+    dataloader = Synthetic_2v_Dataloader(
+        n_samples=[3000, 1000, 1000],
+        train_transform=train_transform,
+        transform=None,
+        batch_size=32,
+    )
     ##########################################################################################################
 
-    dataloader = Breast_Cancer_Dataloader(
-        root_folder="/storage/Mammo/",
-        annotation_csv="modified_breast-level_annotations.csv",
-        imagefolder_path="New_512",
-        batch_size=32,
-        num_workers=4,
-        train_transform=train_transform,
-        transform=transform,
-    )
+    # dataloader = Breast_Cancer_Dataloader(
+    #    root_folder="/storage/Mammo/",
+    #    annotation_csv="modified_breast-level_annotations.csv",
+    #    imagefolder_path="New_512",
+    #    batch_size=32,
+    #    num_workers=4,
+    #    train_transform=train_transform,
+    #    transform=transform,
+    # )
     ##########################################################################################################
     model = TwoViewCNN(
         num_classes=4,
-        task=2,
+        task=1,
         num_views=2,
         input_channels=1,
         resnext_inplanes=16,

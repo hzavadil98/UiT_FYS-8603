@@ -352,6 +352,7 @@ class Synthetic_2v_Dataloader(pl.LightningDataModule):
         img_size=512,
         batch_size=32,
         num_workers=4,
+        train_transform=None,
         transform=None,
         image_save_dir="synthetic_images",
     ):
@@ -360,13 +361,13 @@ class Synthetic_2v_Dataloader(pl.LightningDataModule):
         self.img_size = img_size
         self.batch_size = batch_size
         self.num_workers = num_workers
-        self.transform = transform
+        self.train_transform = train_transform
         self.image_save_dir = pathlib.Path(image_save_dir)
 
         self.train_dataset = Synthetic_2v_Dataset(
             n_samples=self.n_samples[0],
             img_size=self.img_size,
-            transform=self.transform,
+            transform=self.train_transform,
             image_save_dir=self.image_save_dir / "train",
         )
         self.val_dataset = Synthetic_2v_Dataset(
@@ -382,11 +383,11 @@ class Synthetic_2v_Dataloader(pl.LightningDataModule):
             image_save_dir=self.image_save_dir / "test",
         )
 
-    def train_dataloader(self):
+    def train_dataloader(self, shuffle=True):
         return DataLoader(
             self.train_dataset,
             batch_size=self.batch_size,
-            shuffle=True,
+            shuffle=shuffle,
             num_workers=self.num_workers,
             persistent_workers=True,
             pin_memory=True,

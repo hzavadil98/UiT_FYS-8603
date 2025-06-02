@@ -239,8 +239,8 @@ class TwoViewCNN(pl.LightningModule):
     def predict_step(self, batch):
         x, y1, y2 = batch
         logits = self(x)
-        preds = th.argmax(logits, dim=1)
-        return preds
+        # preds = th.argmax(logits, dim=1)
+        return logits
 
     def get_features(self, batch):
         x, y1, y2 = batch
