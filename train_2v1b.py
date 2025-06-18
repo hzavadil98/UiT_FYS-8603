@@ -24,7 +24,7 @@ def main():
         accelerator = "mps"
         devices = 1
     elif torch.cuda.is_available():
-        root_folder = "/storage/VinDR-data/"
+        root_folder = "/storage/Mammo/"
         accelerator = "gpu"
         devices = torch.cuda.device_count()
         torch.set_float32_matmul_precision("high")
