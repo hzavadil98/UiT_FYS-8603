@@ -139,5 +139,5 @@ def plot_joint_diagnostic(
     ax.spines["left"].set_visible(False)
     ax.spines["top"].set_visible(False)
     ax.axes.get_yaxis().set_ticks([])
-    for tick in ax.xaxis.get_major_ticks():
-        tick.label.set_fontsize(fontsize_small)
+    # for tick in ax.xaxis.get_major_ticks():
+    #    tick.label.set_fontsize(fontsize_small)

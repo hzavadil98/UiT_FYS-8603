@@ -4,8 +4,8 @@
 echo "Running the python script..."
 
 
-python train_synt.py
+#python train_synt.py
 
-echo "Script execution completed."
 #python train_4v2b.py
-#python train_2v1b.py
+python train_2v1b.py
+echo "Script execution completed."

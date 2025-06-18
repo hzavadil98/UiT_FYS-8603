@@ -162,6 +162,7 @@ class Breast_Cancer_Dataloader(pl.LightningDataModule):
         num_workers: int,
         train_transform=None,
         transform=None,
+        task: int = 1,  # 1 for birads classification, 2 for density classification
     ):
         super().__init__()
 
@@ -172,6 +173,10 @@ class Breast_Cancer_Dataloader(pl.LightningDataModule):
         self.num_workers = num_workers
         self.train_transform = train_transform
         self.transform = transform
+        self.task = task
+        assert task in [1, 2], (
+            "task must be either 1 (birads classification) or 2 (density classification)"
+        )
 
         self.train_dataset = Breast_Cancer_Dataset(
             self.root_folder,
@@ -194,8 +199,11 @@ class Breast_Cancer_Dataloader(pl.LightningDataModule):
             split="test",
             transform=self.transform,
         )
+        if self.task == 1:
+            labels = self.train_dataset.labels
+        else:
+            labels = self.train_dataset.densities
 
-        labels = self.train_dataset.labels
         targets = np.concatenate((labels["L"].values, labels["R"].values))
         targets = np.array([x[0] for x in targets])
         class_sample_count = np.array(

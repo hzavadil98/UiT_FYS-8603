@@ -343,10 +343,16 @@ class Two_view_model(Breast_backbone):
     linear layer that outputs the final prediction.
     """
 
-    def __init__(self, num_class, weights_file=None, drop=0.3, learning_rate=1e-3):
+    def __init__(
+        self, num_class, weights_file=None, drop=0.3, learning_rate=1e-3, task=1
+    ):
         super(Two_view_model, self).__init__(num_class, learning_rate)
 
         # two separate featurizers for CC an MLO views respectively
+        self.task = task
+
+        assert self.task in [1, 2], "Task must be either 1 (cancer) or 2 (density)"
+
         self.resnets = nn.ModuleList(
             [Four_view_single_featurizer(num_class, drop) for _ in range(2)]
         )
@@ -373,21 +379,24 @@ class Two_view_model(Breast_backbone):
         return self.fc(x)
 
     def training_step(self, batch, batch_idx):
-        x, y = batch
+        x, y1, y2 = batch
+        y = y1 if self.task == 1 else y2
         y_hat = self(x)
         metrics = self.compute_metrics(y_hat, y, prefix="train_")
         self.log_dict(metrics, sync_dist=True)
         return metrics["train_loss"]
 
     def validation_step(self, batch, batch_idx):
-        x, y = batch
+        x, y1, y2 = batch
+        y = y1 if self.task == 1 else y2
         y_hat = self(x)
         metrics = self.compute_metrics(y_hat, y, prefix="val_")
         self.log_dict(metrics, sync_dist=True)
         return metrics["val_loss"]
 
     def test_step(self, batch, batch_idx):
-        x, y = batch
+        x, y1, y2 = batch
+        y = y1 if self.task == 1 else y2
         y_hat = self(x)
         metrics = self.compute_metrics(y_hat, y, prefix="test_")
         self.log_dict(metrics, sync_dist=True)
@@ -397,7 +406,7 @@ class Two_view_model(Breast_backbone):
     def get_resnet_outputs(self, batch):
         self.eval()
         with th.no_grad():
-            x, y = batch
+            x, y1, y2 = batch
             x = [self.resnets[i](image) for i, image in enumerate(x)]
         self.train()
         return x

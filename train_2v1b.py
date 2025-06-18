@@ -74,6 +74,7 @@ def main():
         num_workers=8,
         train_transform=train_transform,
         transform=transform,
+        task=2,  # 2 for density classification
     )
     # dataloader.train_dataset.plot(0)
 
@@ -82,6 +83,7 @@ def main():
         weights_file="checkpoints/One_view_resnet.ckpt",
         drop=0.5,
         learning_rate=1e-5,
+        task=2,  # 2 for density classification
     )
     # check_dataloader_passes_model(dataloader, model)
 
@@ -90,7 +92,7 @@ def main():
 
     checkpoint_callback = ModelCheckpoint(
         dirpath="checkpoints/",
-        filename="2v1b_best_epoch-{epoch:02d}",
+        filename="2v1b_density_best_epoch-{epoch:02d}",
         save_top_k=1,
         monitor="val_loss",
         mode="min",
@@ -102,7 +104,7 @@ def main():
     # figure out if running with mps or gpu or cpu
 
     trainer = pl.Trainer(
-        max_epochs=30,
+        max_epochs=50,
         accelerator=accelerator,
         devices=devices,
         logger=wandb_logger,

@@ -89,9 +89,9 @@ class View_Cancer_dataset(Dataset):
             self.root_folder + self.imagefolder_path, image_id + ".dicom"
         )
         try:
-            image = dcmread(image_path).pixel_array
-            image = np.array(image, dtype=np.float32)
+            image = dcmread(image_path).pixel_array.astype(np.float32)
             image = np.repeat(image[:, :, np.newaxis], 3, axis=2)
+            image = torch.tensor(image).permute(2, 0, 1)
             if self.transforms is not None:
                 image = self.transforms(image)
         except Exception as e:
