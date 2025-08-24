@@ -1,6 +1,7 @@
 import pytorch_lightning as pl
 import torch
 import torchvision.transforms.v2 as T
+import wandb
 from pytorch_lightning.callbacks import (
     EarlyStopping,
     LearningRateMonitor,
@@ -8,8 +9,7 @@ from pytorch_lightning.callbacks import (
 )
 from pytorch_lightning.loggers import WandbLogger
 
-import wandb
-from src import Breast_Cancer_Dataloader, Two_view_model
+from src import Breast_Cancer_Dataloader, Mirai_two_view_model, Two_view_model
 
 
 def main():
@@ -85,9 +85,19 @@ def main():
         learning_rate=1e-5,
         task=2,  # 2 for density classification
     )
+    model = Mirai_two_view_model(
+        num_class=5,
+        drop=0.3,
+        learning_rate=1e-4,
+        task=1,  # 1 for cancer classification
+    )
     # check_dataloader_passes_model(dataloader, model)
 
-    wandb_logger = WandbLogger(project="Two_view_one_branch_model", log_model="all")
+    wandb_logger = WandbLogger(
+        project="Two_view_one_branch_model",
+        log_model="all",
+        name="mirai_fixed_backbone",
+    )
     wandb_logger.watch(model, log="all", log_freq=5)
 
     checkpoint_callback = ModelCheckpoint(
@@ -116,12 +126,14 @@ def main():
     )
 
     # Train
-    trainer.fit(model, dataloader)
+    # trainer.fit(model, dataloader)
     # Load best weights
     print(
         f"Finished training, loading the best epoch: {checkpoint_callback.best_model_path}"
     )
-    model = Two_view_model.load_from_checkpoint(checkpoint_callback.best_model_path)
+    model = Mirai_two_view_model.load_from_checkpoint(
+        "/Users/jazav7774/Library/CloudStorage/OneDrive-UiTOffice365/UiT/FYS-8603/checkpoints/2v1b_density_best_epoch-epoch=12.ckpt"
+    )
     # Test
     trainer.test(model, dataloader)
 
