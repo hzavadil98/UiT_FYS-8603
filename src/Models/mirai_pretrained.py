@@ -11,6 +11,10 @@ from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.utilities import rank_zero_only
 from torchmetrics.classification import Accuracy, F1Score, MulticlassConfusionMatrix
 
+from Mirai_Risk_Prediction_Model.asymmetry_model.mirai_localized_dif_head import (
+    extract_mirai_backbone,
+)
+
 # Add the project root to Python path
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 sys.path.insert(0, project_root)
@@ -18,10 +22,6 @@ sys.path.insert(0, project_root)
 # Add the Mirai model directory to Python path
 mirai_path = os.path.join(project_root, "Mirai_Risk_Prediction_Model")
 sys.path.insert(0, mirai_path)
-
-from Mirai_Risk_Prediction_Model.asymmetry_model.mirai_localized_dif_head import (
-    extract_mirai_backbone,
-)
 
 
 class Breast_backbone(pl.LightningModule):
