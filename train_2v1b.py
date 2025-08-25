@@ -71,7 +71,7 @@ def main():
         imagefolder_path=imagefolder_path,
         image_format=image_format,
         norm_kind=norm_kind,
-        batch_size=32,
+        batch_size=16,
         num_workers=8,
         train_transform=train_transform,
         transform=None,
@@ -119,7 +119,7 @@ def main():
         accelerator=accelerator,
         devices=devices,
         logger=wandb_logger,
-        accumulate_grad_batches=4,
+        accumulate_grad_batches=8,
         callbacks=[checkpoint_callback, lr_monitor, early_stopping],
         # limit_train_batches=3,  # Only 5 training batches per epoch
         # limit_val_batches=2,
