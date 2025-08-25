@@ -60,9 +60,9 @@ def main():
     #    ]
     # )
 
-    imagefolder_path = "New_512"
-    image_format = "dicom"
-    norm_kind = "zscore"
+    imagefolder_path = "images_png"
+    image_format = "png"
+    norm_kind = "dataset_zscore"
     task = 1  # 1 for cancer, 2 for density
 
     dataloader = Breast_Cancer_Dataloader(
