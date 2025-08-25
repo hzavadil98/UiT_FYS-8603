@@ -8,12 +8,14 @@ __all__ = [
     "Breast_Cancer_Dataloader",
     "TwoViewCNN",
     "Synthetic_2v_Dataloader",
+    "Mirai_two_view_model",
 ]
 
 from .Dataloaders.Breast_Cancer import Breast_Cancer_Dataloader
 from .Dataloaders.Patient_Cancer import Patient_Cancer_Dataloader
 from .Dataloaders.Synthetic_2v import Synthetic_2v_Dataloader
 from .Dataloaders.View_Cancer import View_Cancer_Dataloader
+from .Models.mirai_pretrained import Mirai_two_view_model
 from .Models.Multiview_cancer_models import (
     Four_view_featurizers,
     Four_view_two_branch_model,
