@@ -10,6 +10,7 @@ dependencies = [
     "imblearn>=0.0",
     "isort>=6.0.0",
     "jupyter>=1.1.1",
+    "lifelines>=0.30.0",
     "matplotlib>=3.10.0",
     "mvlearn>=0.4.1",
     "nibabel>=5.3.2",

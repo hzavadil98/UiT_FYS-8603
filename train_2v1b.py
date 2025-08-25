@@ -18,9 +18,7 @@ def main():
     """
     # Recognizes if running on my mac or on the server - sets the root_folder and accelerator
     if torch.backends.mps.is_available():
-        root_folder = (
-            "/Users/jazav7774/Library/CloudStorage/OneDrive-UiTOffice365/Data/Mammo/"
-        )
+        root_folder = "/Users/jazav7774/Data/Mammo/"
         accelerator = "mps"
         devices = 1
     elif torch.cuda.is_available():
@@ -31,50 +29,48 @@ def main():
 
     train_transform = T.Compose(
         [
-            T.ToImage(),
+            # T.ToImage(),
             # T.RandomRotation(degrees=10),
-            T.ToDtype(torch.float32, scale=True),
-            T.Normalize(
-                mean=[781.0543, 781.0543, 781.0543],
-                std=[1537.8235, 1537.8235, 1537.8235],
-            ),
+            # T.ToDtype(torch.float32, scale=True),
+            # T.Normalize(
+            #    mean=[781.0543, 781.0543, 781.0543],
+            #    std=[1537.8235, 1537.8235, 1537.8235],
+            # ),
             # T.RandomAdjustSharpness(sharpness_factor=1, p=1),
             # T.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1),
             T.RandomHorizontalFlip(p=0.5),
             T.RandomVerticalFlip(p=0.5),
-            # T.RandomRotation(degrees=10),
-            # T.Normalize(
-            #    mean=[0.5, 0.5, 0.5],
-            #    std=[0.7, 0.7, 0.7],
-            # ),
+            T.RandomRotation(degrees=10),
         ]
     )
 
-    transform = T.Compose(
-        [
-            T.ToImage(),
-            T.ToDtype(torch.float32, scale=True),
-            T.Normalize(
-                mean=[781.0543, 781.0543, 781.0543],
-                std=[1537.8235, 1537.8235, 1537.8235],
-            ),
-            # T.RandomAdjustSharpness(sharpness_factor=1, p=1),
-            # T.Normalize(
-            #    mean=[0.5, 0.5, 0.5],
-            #    std=[0.7, 0.7, 0.7],
-            # ),
-        ]
-    )
+    # transform = T.Compose(
+    #    [
+    # T.ToImage(),
+    # T.ToDtype(torch.float32, scale=True),
+    # T.Normalize(
+    #    mean=[781.0543, 781.0543, 781.0543],
+    #    std=[1537.8235, 1537.8235, 1537.8235],
+    # ),
+    # T.RandomAdjustSharpness(sharpness_factor=1, p=1),
+    # T.Normalize(
+    #    mean=[0.5, 0.5, 0.5],
+    #    std=[0.7, 0.7, 0.7],
+    # ),
+    #    ]
+    # )
 
     dataloader = Breast_Cancer_Dataloader(
         root_folder=root_folder,
         annotation_csv="modified_breast-level_annotations.csv",
         imagefolder_path="New_512",
+        image_format="dicom",
+        norm_kind="dataset_zscore",
         batch_size=32,
         num_workers=8,
         train_transform=train_transform,
-        transform=transform,
-        task=2,  # 2 for density classification
+        transform=None,
+        task=1,  # 2 for density classification
     )
     # dataloader.train_dataset.plot(0)
 
@@ -83,20 +79,20 @@ def main():
         weights_file="checkpoints/One_view_resnet.ckpt",
         drop=0.5,
         learning_rate=1e-5,
-        task=2,  # 2 for density classification
+        task=1,  # 2 for density classification
     )
-    model = Mirai_two_view_model(
-        num_class=5,
-        drop=0.3,
-        learning_rate=1e-4,
-        task=1,  # 1 for cancer classification
-    )
+    # model = Mirai_two_view_model(
+    #    num_class=5,
+    #    drop=0.3,
+    #    learning_rate=1e-4,
+    #    task=1,  # 1 for cancer classification
+    # )
     # check_dataloader_passes_model(dataloader, model)
 
     wandb_logger = WandbLogger(
         project="Two_view_one_branch_model",
         log_model="all",
-        name="mirai_fixed_backbone",
+        name="Resnet_New_512_dataset_zscore",
     )
     wandb_logger.watch(model, log="all", log_freq=5)
 
@@ -126,14 +122,13 @@ def main():
     )
 
     # Train
-    # trainer.fit(model, dataloader)
+    trainer.fit(model, dataloader)
     # Load best weights
     print(
         f"Finished training, loading the best epoch: {checkpoint_callback.best_model_path}"
     )
-    model = Mirai_two_view_model.load_from_checkpoint(
-        "/Users/jazav7774/Library/CloudStorage/OneDrive-UiTOffice365/UiT/FYS-8603/checkpoints/2v1b_density_best_epoch-epoch=12.ckpt"
-    )
+
+    model = Two_view_model.load_from_checkpoint(checkpoint_callback.best_model_path)
     # Test
     trainer.test(model, dataloader)
 

@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -15,6 +16,8 @@ class Patient_Cancer_Dataset(Dataset):
         root_folder: str,
         annotation_csv: str,
         imagefolder_path: str,
+        image_format: str = "dicom",
+        norm_kind: str = "dataset_zscore",
         split=None,
         transform=None,
     ):
@@ -32,13 +35,20 @@ class Patient_Cancer_Dataset(Dataset):
         assert split in ["training", "test", "validation", None], (
             'split must be either "training" or "test" or "validation" or None'
         )
+        assert image_format in ["png", "dicom"], (
+            'image_format must be either "png" or "dicom"'
+        )
+        assert norm_kind in ["dataset_zscore", "zscore", "minmax", None], (
+            'norm_kind must be either "dataset_zscore" or "zscore" or "minmax"'
+        )
 
         self.split = split
-        self.imagefolder_path = imagefolder_path
-        self.root_folder = root_folder
+        self.imagefolder_path = Path(imagefolder_path)
+        self.root_folder = Path(root_folder)
+        self.image_format = image_format
+        self.norm_kind = norm_kind
         self.transforms = transform
-
-        annotation_csv = pd.read_csv(os.path.join(root_folder, annotation_csv))
+        annotation_csv = pd.read_csv(self.root_folder / annotation_csv)
 
         splitBool = True
         if split is not None:
@@ -68,6 +78,47 @@ class Patient_Cancer_Dataset(Dataset):
         # sorts the labels according to the patient_ids
         self.labels = self.labels.reindex(self.patient_ids)
 
+    def load_img_to_tensor(self, image_id) -> torch.Tensor:
+        """Load a grayscale image from disk and convert it to a tensor of shape (3, H, W)."""
+        if self.image_format == "dicom":
+            image_path = (
+                self.root_folder / self.imagefolder_path / (image_id + ".dicom")
+            )
+            try:
+                image = torch.from_numpy(
+                    dcmread(image_path).pixel_array.astype(np.float32)
+                )
+                image = image.unsqueeze(0).repeat(3, 1, 1)
+            except Exception as e:
+                print(f"Error reading image {image_path}: {e}")
+        else:
+            image_path = self.root_folder / self.imagefolder_path / (image_id + ".png")
+            try:
+                import imageio.v3 as iio
+
+                image = torch.from_numpy(iio.imread(image_path).astype(np.float32))
+                image = image.unsqueeze(0).repeat(3, 1, 1)
+            except Exception as e:
+                print(f"Error reading image {image_path}: {e}")
+        return image
+
+    def normalise_image(self, image: torch.Tensor, norm_kind: str) -> torch.Tensor:
+        if norm_kind == "minmax":
+            if self.image_format == "dicom":
+                image = image / 65535.0
+            else:
+                image = image / 255.0
+        elif norm_kind == "zscore":
+            image = (image - image.mean()) / image.std()
+        elif norm_kind == "dataset_zscore":
+            if self.image_format == "dicom":
+                image = (image - 923.4552) / 2035.7942
+            else:
+                image = (image - 108.3328) / 69.6431
+        else:
+            pass
+        return image
+
     def __len__(self):
         return len(self.patient_ids)
 
@@ -87,20 +138,11 @@ class Patient_Cancer_Dataset(Dataset):
                     (data_lines["laterality"] == laterality)
                     & (data_lines["view_position"] == view)
                 ]["image_id"].values[0]
-                # image_id = data_lines.iloc[i]["image_id"]
-                image_path = os.path.join(
-                    self.root_folder + self.imagefolder_path, image_id + ".dicom"
-                )
-                try:
-                    image = dcmread(image_path).pixel_array.astype(np.float32)
-                    image = np.repeat(image[:, :, np.newaxis], 3, axis=2)
-                    image = torch.tensor(image).permute(2, 0, 1)  # Convert to CxHxW
-                    if self.transforms is not None:
-                        image = self.transforms(image)
-                    images.append(image)
-                except Exception as e:
-                    print(f"Error reading image {image_path}: {e}")
-                    continue
+                image = self.load_img_to_tensor(image_id)
+                image = self.normalise_image(image, norm_kind=self.norm_kind)
+                if self.transforms is not None:
+                    image = self.transforms(image)
+                images.append(image)
 
         return images, labels
 
@@ -129,6 +171,8 @@ class Patient_Cancer_Dataloader(pl.LightningDataModule):
         root_folder: str,
         annotation_csv: str,
         imagefolder_path: str,
+        image_format: str = "dicom",
+        norm_kind: str = "dataset_zscore",
         batch_size=16,
         num_workers=8,
         train_transform=None,
@@ -182,6 +226,8 @@ class Patient_Cancer_Dataloader(pl.LightningDataModule):
             root_folder,
             annotation_csv,
             imagefolder_path,
+            image_format=image_format,
+            norm_kind=norm_kind,
             split="training",
             transform=self.train_transform,
         )
@@ -189,6 +235,8 @@ class Patient_Cancer_Dataloader(pl.LightningDataModule):
             root_folder,
             annotation_csv,
             imagefolder_path,
+            image_format=image_format,
+            norm_kind=norm_kind,
             split="validation",
             transform=self.transform,
         )
@@ -196,6 +244,8 @@ class Patient_Cancer_Dataloader(pl.LightningDataModule):
             root_folder,
             annotation_csv,
             imagefolder_path,
+            image_format=image_format,
+            norm_kind=norm_kind,
             split="test",
             transform=self.transform,
         )

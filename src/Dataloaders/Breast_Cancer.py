@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -20,9 +20,10 @@ class Breast_Cancer_Dataset(Dataset):
         root_folder: str,
         annotation_csv: str,
         imagefolder_path: str,
+        image_format: str = "dicom",
+        norm_kind: str = "dataset_zscore",
         split=None,
         transform=None,
-        # laterality: str = None,
     ):
         """
         root_folder
@@ -38,15 +39,21 @@ class Breast_Cancer_Dataset(Dataset):
         assert split in ["training", "test", "validation", None], (
             'split must be either "training" or "test" or "validation" or None'
         )
-        # assert laterality in ["L", "R", None], 'view must be either "L" or "R"'
+        assert image_format in ["png", "dicom"], (
+            'image_format must be either "png" or "dicom"'
+        )
+        assert norm_kind in ["dataset_zscore", "zscore", "minmax", None], (
+            'norm_kind must be either "dataset_zscore" or "zscore" or "minmax"'
+        )
 
         self.split = split
-        self.imagefolder_path = imagefolder_path
-        self.root_folder = root_folder
+        self.imagefolder_path = Path(imagefolder_path)
+        self.root_folder = Path(root_folder)
+        self.image_format = image_format
+        self.norm_kind = norm_kind
         self.transforms = transform
-        # self.laterality = laterality
 
-        annotation_csv = pd.read_csv(os.path.join(root_folder, annotation_csv))
+        annotation_csv = pd.read_csv(self.root_folder / annotation_csv)
 
         if split is not None:
             splitBool = True
@@ -100,6 +107,52 @@ class Breast_Cancer_Dataset(Dataset):
         self.labels = self.labels.reindex(self.patient_ids)
         self.densities = self.densities.reindex(self.patient_ids)
 
+    def load_img_to_tensor(self, image_id) -> torch.Tensor:
+        """Load a grayscale image from disk and convert it to a tensor of shape (3, H, W)."""
+        if self.image_format == "dicom":
+            image_path = (
+                self.root_folder / self.imagefolder_path / (image_id + ".dicom")
+            )
+            try:
+                image = torch.from_numpy(
+                    dcmread(image_path).pixel_array.astype(np.float32)
+                )
+                image = image.unsqueeze(0).repeat(3, 1, 1)
+            except Exception as e:
+                print(f"Error reading image {image_path}: {e}")
+        else:
+            image_path = self.root_folder / self.imagefolder_path / (image_id + ".png")
+            try:
+                import imageio.v3 as iio
+
+                image = torch.from_numpy(iio.imread(image_path).astype(np.float32))
+                image = image.unsqueeze(0).repeat(3, 1, 1)
+            except Exception as e:
+                print(f"Error reading image {image_path}: {e}")
+        return image
+
+    def normalise_image(self, image: torch.Tensor, norm_kind: str) -> torch.Tensor:
+        if norm_kind == "minmax":
+            if self.image_format == "dicom":
+                image = image / 65535.0
+            else:
+                image = image / 255.0
+        elif norm_kind == "zscore":
+            image = (image - image.mean()) / image.std()
+        elif norm_kind == "dataset_zscore":
+            if self.image_format == "dicom":
+                image = (
+                    (image - 923.4552) / 2035.7942
+                )  # approx mean and std calculated from the train dataset of New_512 imgs using the weighted sampler, (unweighted - single pass - 781.06, 1184.94) from suaiba got 781.0543 and 1537.8235 for some reason
+                # image = (image - 781.0543) / 1537.8235
+            else:
+                image = (
+                    (image - 108.3328) / 69.6431
+                )  # mean and std calculated from the train dataset of images_png with weighted sampler (unweighted - single pass - 104.81, 66.57)
+        else:
+            pass
+        return image
+
     def __len__(self):
         return 2 * len(self.patient_ids)
 
@@ -116,24 +169,16 @@ class Breast_Cancer_Dataset(Dataset):
         density = torch.tensor(self.densities.loc[patient_id, laterality][0])
 
         images = []
-
         for view in ["CC", "MLO"]:
             image_id = data_lines[
                 (data_lines["laterality"] == laterality)
                 & (data_lines["view_position"] == view)
             ]["image_id"].values[0]
-            image_path = os.path.join(
-                self.root_folder + self.imagefolder_path, image_id + ".dicom"
-            )
-            try:
-                image = dcmread(image_path).pixel_array.astype(np.float32)
-                image = torch.from_numpy(image).unsqueeze(0)  # Add channel dimension
-                if self.transforms is not None:
-                    image = self.transforms(image)
-                images.append(image)
-            except Exception as e:
-                print(f"Error reading image {image_path}: {e}")
-                continue
+            image = self.load_img_to_tensor(image_id)
+            image = self.normalise_image(image, norm_kind=self.norm_kind)
+            if self.transforms is not None:
+                image = self.transforms(image)
+            images.append(image)
 
         return images, label, density
 
@@ -158,8 +203,10 @@ class Breast_Cancer_Dataloader(pl.LightningDataModule):
         root_folder: str,
         annotation_csv: str,
         imagefolder_path: str,
-        batch_size: int,
-        num_workers: int,
+        image_format: str = "dicom",
+        norm_kind: str = "dataset_zscore",
+        batch_size: int = 32,
+        num_workers: int = 4,
         train_transform=None,
         transform=None,
         task: int = 1,  # 1 for birads classification, 2 for density classification
@@ -182,6 +229,8 @@ class Breast_Cancer_Dataloader(pl.LightningDataModule):
             self.root_folder,
             self.annotation_csv,
             self.imagefolder_path,
+            image_format=image_format,
+            norm_kind=norm_kind,
             split="training",
             transform=self.train_transform,
         )
@@ -189,6 +238,8 @@ class Breast_Cancer_Dataloader(pl.LightningDataModule):
             self.root_folder,
             self.annotation_csv,
             self.imagefolder_path,
+            image_format=image_format,
+            norm_kind=norm_kind,
             split="validation",
             transform=self.transform,
         )
@@ -196,6 +247,8 @@ class Breast_Cancer_Dataloader(pl.LightningDataModule):
             self.root_folder,
             self.annotation_csv,
             self.imagefolder_path,
+            image_format=image_format,
+            norm_kind=norm_kind,
             split="test",
             transform=self.transform,
         )
