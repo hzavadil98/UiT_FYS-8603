@@ -9,7 +9,7 @@ from pytorch_lightning.callbacks import (
 )
 from pytorch_lightning.loggers import WandbLogger
 
-from src import Breast_Cancer_Dataloader, Mirai_two_view_model, Two_view_model
+from src import Breast_Cancer_Dataloader, Two_view_model
 
 
 def main():
@@ -60,17 +60,22 @@ def main():
     #    ]
     # )
 
+    imagefolder_path = "New_512"
+    image_format = "dicom"
+    norm_kind = "zscore"
+    task = 1  # 1 for cancer, 2 for density
+
     dataloader = Breast_Cancer_Dataloader(
         root_folder=root_folder,
         annotation_csv="modified_breast-level_annotations.csv",
-        imagefolder_path="New_512",
-        image_format="dicom",
-        norm_kind="dataset_zscore",
+        imagefolder_path=imagefolder_path,
+        image_format=image_format,
+        norm_kind=norm_kind,
         batch_size=32,
         num_workers=8,
         train_transform=train_transform,
         transform=None,
-        task=1,  # 2 for density classification
+        task=task,  # 2 for density classification
     )
     # dataloader.train_dataset.plot(0)
 
@@ -79,7 +84,7 @@ def main():
         weights_file="checkpoints/One_view_resnet.ckpt",
         drop=0.5,
         learning_rate=1e-5,
-        task=1,  # 2 for density classification
+        task=task,  # 2 for density classification
     )
     # model = Mirai_two_view_model(
     #    num_class=5,
@@ -92,7 +97,7 @@ def main():
     wandb_logger = WandbLogger(
         project="Two_view_one_branch_model",
         log_model="all",
-        name="Resnet_New_512_dataset_zscore",
+        name=f"Resnet_{imagefolder_path}_{norm_kind}_{'cancer' if task == 1 else 'density'}",
     )
     wandb_logger.watch(model, log="all", log_freq=5)
 
