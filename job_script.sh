@@ -12,7 +12,7 @@ python3 --version
 
 
 uv --version
-cd ../..
+cd ../../workspace/
 ls
 
 python3 train_2v1b.py
