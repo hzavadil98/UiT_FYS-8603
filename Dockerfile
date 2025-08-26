@@ -20,6 +20,6 @@ COPY pyproject.toml uv.lock ./
 RUN uv pip install --system --requirement pyproject.toml
 
 # Set PYTHONPATH if needed
-ENV PYTHONPATH=/workspace/python_packages:$PYTHONPATH
+ENV PYTHONPATH=/storage/UiT_FYS-8603/python_packages:$PYTHONPATH
 
 
