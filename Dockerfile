@@ -28,4 +28,4 @@ RUN uv sync
 # Set PYTHONPATH if needed
 ENV PYTHONPATH=/storage/UiT_FYS-8603/python_packages
 
-
+CMD ["bash", "-c", "source /workspace/.venv/bin/activate && exec bash"]
