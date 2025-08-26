@@ -1,11 +1,13 @@
 FROM nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
 
-# Install system dependencies and Python 3.12
-RUN apt-get update && apt-get install -y \
-	git \
-	curl \
-	python3.12 \
-	python3-pip \
+# Install system dependencies and Python 3.12 using deadsnakes PPA
+RUN apt-get update && apt-get install -y software-properties-common && \
+	add-apt-repository ppa:deadsnakes/ppa && \
+	apt-get update && apt-get install -y \
+		python3.12 \
+		python3-pip \
+		git \
+		curl \
 	&& rm -rf /var/lib/apt/lists/*
 
 # Set python3 to python3.12 for convenience
