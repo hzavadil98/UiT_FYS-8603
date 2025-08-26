@@ -10,7 +10,7 @@ spec:
       hostIPC: true
       containers:
       - name: train
-        image: "hzavadil98/cuda_conda:latest"
+        image: "hzavadil98/fys-8603:latest"
         resources:
           requests:
             nvidia.com/gpu: 1

@@ -128,8 +128,8 @@ def main():
         logger=wandb_logger,
         accumulate_grad_batches=4,
         callbacks=[checkpoint_callback, lr_monitor, early_stopping],
-        # limit_train_batches=3,  # Only 5 training batches per epoch
-        # limit_val_batches=2,
+        limit_train_batches=3,  # Only 3 training batches per epoch
+        limit_val_batches=2,
         log_every_n_steps=5,
     )
 
