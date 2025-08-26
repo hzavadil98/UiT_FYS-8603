@@ -19,9 +19,6 @@ COPY pyproject.toml uv.lock ./
 # Install Python dependencies using uv
 RUN uv pip install --system --requirement pyproject.toml
 
-# Copy your code
-COPY . .
-
 # Set PYTHONPATH if needed
 ENV PYTHONPATH=/workspace/python_packages:$PYTHONPATH
 
