@@ -39,12 +39,14 @@ RUN apt-get update && apt-get install -y \
     software-properties-common \
     && add-apt-repository ppa:deadsnakes/ppa -y \
     && apt-get update && apt-get install -y \
-    python3.12 python3.12-venv python3.12-distutils python3-pip \
+    python3.12 python3.12-venv \
     git curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Make python3 point to 3.12
 RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1
+
+# Install pip for Python 3.12
 RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3
 
 # Install uv
@@ -54,7 +56,10 @@ WORKDIR /workspace
 
 COPY pyproject.toml uv.lock .python-version ./
 
+# Sync dependencies (using 3.12 now)
 RUN uv sync
 
+# Use venv by default
 ENV PATH="/workspace/.venv/bin:$PATH"
+
 CMD ["bash"]
