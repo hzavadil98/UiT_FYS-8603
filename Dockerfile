@@ -1,4 +1,9 @@
+
 FROM nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
+
+# Prevent tzdata from prompting for timezone during build
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Etc/UTC
 
 # Install system dependencies and Python 3.12 using deadsnakes PPA
 RUN apt-get update && apt-get install -y software-properties-common && \
