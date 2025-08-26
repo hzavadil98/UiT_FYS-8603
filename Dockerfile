@@ -1,27 +1,20 @@
 
+
 FROM nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
 
 # Prevent tzdata from prompting for timezone during build
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/UTC
 
-# Install system dependencies and Python 3.12 using deadsnakes PPA
-
-RUN apt-get update && apt-get install -y software-properties-common && \
-	add-apt-repository ppa:deadsnakes/ppa && \
-	apt-get update && apt-get install -y \
-		python3.12 \
-		python3.12-distutils \
-		python3-pip \
-		git \
-		curl \
+# Install system dependencies and Python 3.10
+RUN apt-get update && apt-get install -y \
+	python3-pip \
+	git \
+	curl \
 	&& rm -rf /var/lib/apt/lists/*
 
-# Set python3 to python3.12 for convenience
-RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1
-
-# Install uv (universal virtualenv) using Python 3.12
-RUN python3.12 -m pip install --upgrade pip && python3.12 -m pip install uv
+# Install uv (universal virtualenv) using Python 3.10
+RUN pip install --upgrade pip && pip install uv
 
 # Set working directory
 WORKDIR /workspace
