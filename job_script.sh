@@ -13,7 +13,7 @@ python3 --version
 
 uv --version
 cd ../../workspace/
-ls
+ls -al
 
 python3 train_2v1b.py
 echo "Script execution completed."
