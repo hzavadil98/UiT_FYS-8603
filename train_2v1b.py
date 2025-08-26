@@ -60,9 +60,9 @@ def main():
     #    ]
     # )
 
-    imagefolder_path = "images_png"
-    image_format = "png"
-    norm_kind = "dataset_zscore"
+    imagefolder_path = "New_512"
+    image_format = "dicom"
+    norm_kind = "zscore"
     task = 1  # 1 for cancer, 2 for density
 
     dataloader = Breast_Cancer_Dataloader(
@@ -71,7 +71,7 @@ def main():
         imagefolder_path=imagefolder_path,
         image_format=image_format,
         norm_kind=norm_kind,
-        batch_size=16,
+        batch_size=32,
         num_workers=8,
         train_transform=train_transform,
         transform=None,
@@ -100,10 +100,17 @@ def main():
         name=f"Resnet_{imagefolder_path}_{norm_kind}_{'cancer' if task == 1 else 'density'}",
     )
     wandb_logger.watch(model, log="all", log_freq=5)
+    wandb_logger.experiment.config.update(
+        {
+            "imagefolder_path": imagefolder_path,
+            "image_format": image_format,
+            "norm_kind": norm_kind,
+        }
+    )
 
     checkpoint_callback = ModelCheckpoint(
         dirpath="checkpoints/",
-        filename="2v1b_density_best_epoch-{epoch:02d}",
+        filename="2v1b_{imagefolder_path}_{norm_kind}_task:{task:02d}-epoch:{epoch:02d}",
         save_top_k=1,
         monitor="val_loss",
         mode="min",
@@ -119,7 +126,7 @@ def main():
         accelerator=accelerator,
         devices=devices,
         logger=wandb_logger,
-        accumulate_grad_batches=8,
+        accumulate_grad_batches=4,
         callbacks=[checkpoint_callback, lr_monitor, early_stopping],
         # limit_train_batches=3,  # Only 5 training batches per epoch
         # limit_val_batches=2,
