@@ -23,9 +23,9 @@ WORKDIR /workspace
 COPY pyproject.toml uv.lock .python-version ./
 
 # Install Python dependencies using uv sync for reproducibility
-RUN uv sync --system
+RUN uv sync
 
 # Set PYTHONPATH if needed
-ENV PYTHONPATH=/storage/UiT_FYS-8603/python_packages:$PYTHONPATH
+ENV PYTHONPATH=/storage/UiT_FYS-8603/python_packages
 
 
