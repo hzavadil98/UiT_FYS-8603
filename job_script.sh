@@ -11,8 +11,8 @@ python3 --version
 #list uv packages
 
 uv --version
+cd ../
 ls
-uv tree
 
 python3 train_2v1b.py
 echo "Script execution completed."
