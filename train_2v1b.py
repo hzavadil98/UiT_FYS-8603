@@ -60,9 +60,9 @@ def main():
     #    ]
     # )
 
-    imagefolder_path = "images_png"
-    image_format = "png"
-    norm_kind = "zscore"
+    imagefolder_path = "New_512"
+    image_format = "dicom"
+    norm_kind = "dataset_zscore"
     batch_size = 16
     task = 1  # 1 for cancer, 2 for density
 
