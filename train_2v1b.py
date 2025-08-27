@@ -60,10 +60,10 @@ def main():
     #    ]
     # )
 
-    imagefolder_path = "images_png"
-    image_format = "png"
+    imagefolder_path = "New_512"
+    image_format = "dicom"
     norm_kind = "dataset_zscore"
-    batch_size = 4
+    batch_size = 16
     task = 1  # 1 for cancer, 2 for density
 
     dataloader = Breast_Cancer_Dataloader(
@@ -97,10 +97,10 @@ def main():
 
     wandb_logger = WandbLogger(
         project="Two_view_one_branch_model",
-        log_model="all",
+        log_model="True",
         name=f"Resnet_{imagefolder_path}_{norm_kind}_{'cancer' if task == 1 else 'density'}",
     )
-    wandb_logger.watch(model, log="all", log_freq=10)
+    # wandb_logger.watch(model, log="all", log_freq=10)
     wandb_logger.experiment.config.update(
         {
             "imagefolder_path": imagefolder_path,
@@ -128,10 +128,10 @@ def main():
         accelerator=accelerator,
         devices=devices,
         logger=wandb_logger,
-        accumulate_grad_batches=32,
+        accumulate_grad_batches=8,
         callbacks=[checkpoint_callback, lr_monitor, early_stopping],
-        limit_train_batches=3,  # Only 3 training batches per epoch
-        limit_val_batches=2,
+        #    limit_train_batches=3,  # Only 3 training batches per epoch
+        #    limit_val_batches=2,
         log_every_n_steps=10,
     )
 
