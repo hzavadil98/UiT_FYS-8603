@@ -138,7 +138,11 @@ class Breast_Cancer_Dataset(Dataset):
             else:
                 image = image / 255.0
         elif norm_kind == "zscore":
-            image = (image - image.mean()) / image.std()
+            std = image.std()
+            if std == 0:
+                print("Warning: Zero standard deviation, setting to 1.")
+                std = 1.0
+            image = (image - image.mean()) / std
         elif norm_kind == "dataset_zscore":
             if self.image_format == "dicom":
                 image = (
