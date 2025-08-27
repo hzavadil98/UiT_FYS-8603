@@ -60,7 +60,7 @@ def main():
     #    ]
     # )
 
-    imagefolder_path = "image_png"
+    imagefolder_path = "images_png"
     image_format = "png"
     norm_kind = "zscore"
     batch_size = 16
