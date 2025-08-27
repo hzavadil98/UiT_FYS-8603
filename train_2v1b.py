@@ -63,7 +63,7 @@ def main():
     imagefolder_path = "images_png"
     image_format = "png"
     norm_kind = "dataset_zscore"
-    batch_size = 8
+    batch_size = 4
     task = 1  # 1 for cancer, 2 for density
 
     dataloader = Breast_Cancer_Dataloader(
@@ -128,7 +128,7 @@ def main():
         accelerator=accelerator,
         devices=devices,
         logger=wandb_logger,
-        accumulate_grad_batches=16,
+        accumulate_grad_batches=32,
         callbacks=[checkpoint_callback, lr_monitor, early_stopping],
         limit_train_batches=3,  # Only 3 training batches per epoch
         limit_val_batches=2,
