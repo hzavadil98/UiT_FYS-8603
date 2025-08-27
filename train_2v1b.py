@@ -71,7 +71,7 @@ def main():
         imagefolder_path=imagefolder_path,
         image_format=image_format,
         norm_kind=norm_kind,
-        batch_size=32,
+        batch_size=16,
         num_workers=8,
         train_transform=train_transform,
         transform=None,
@@ -99,7 +99,7 @@ def main():
         log_model="all",
         name=f"Resnet_{imagefolder_path}_{norm_kind}_{'cancer' if task == 1 else 'density'}",
     )
-    wandb_logger.watch(model, log="all", log_freq=5)
+    wandb_logger.watch(model, log="all", log_freq=1)
     wandb_logger.experiment.config.update(
         {
             "imagefolder_path": imagefolder_path,
