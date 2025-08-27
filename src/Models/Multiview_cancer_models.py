@@ -410,6 +410,8 @@ class Two_view_model(Breast_backbone):
         self.train()
         return x
 
+
+"""
     def on_train_batch_start(self, batch, batch_idx):
         print(f"Train batch {batch_idx} started.")
 
@@ -433,3 +435,4 @@ class Two_view_model(Breast_backbone):
 
     def on_validation_epoch_end(self):
         print("Validation epoch ended.")
+"""
