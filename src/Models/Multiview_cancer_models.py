@@ -4,11 +4,10 @@ import seaborn as sns
 import torch as th
 import torch.nn as nn
 import torchvision.models as models
+import wandb
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.utilities import rank_zero_only
 from torchmetrics.classification import Accuracy, F1Score, MulticlassConfusionMatrix
-
-import wandb
 
 
 class Breast_backbone(pl.LightningModule):
@@ -410,3 +409,6 @@ class Two_view_model(Breast_backbone):
             x = [self.resnets[i](image) for i, image in enumerate(x)]
         self.train()
         return x
+
+    def on_train_batch_end(self, outputs, batch, batch_idx):
+        print(f"Train batch {batch_idx} ended.")
