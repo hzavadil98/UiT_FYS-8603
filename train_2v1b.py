@@ -1,7 +1,6 @@
 import pytorch_lightning as pl
 import torch
 import torchvision.transforms.v2 as T
-import wandb
 from pytorch_lightning.callbacks import (
     EarlyStopping,
     LearningRateMonitor,
@@ -9,6 +8,7 @@ from pytorch_lightning.callbacks import (
 )
 from pytorch_lightning.loggers import WandbLogger
 
+import wandb
 from src import Breast_Cancer_Dataloader, Two_view_model
 
 
@@ -38,9 +38,16 @@ def main():
             # ),
             # T.RandomAdjustSharpness(sharpness_factor=1, p=1),
             # T.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1),
+            #            T.Resize(396),              #resizes the shorter side to 396 pixels while keeping aspect ratio (660x396), total numel similar to 512*512
             T.RandomHorizontalFlip(p=0.5),
             T.RandomVerticalFlip(p=0.5),
             T.RandomRotation(degrees=10),
+        ]
+    )
+
+    transforms = T.Compose(
+        [
+            T.Resize(396),
         ]
     )
 
@@ -60,10 +67,10 @@ def main():
     #    ]
     # )
 
-    imagefolder_path = "images_png"
+    imagefolder_path = "images_png_396"
     image_format = "png"
     norm_kind = "zscore"
-    batch_size = 1
+    batch_size = 8
     task = 1  # 1 for cancer, 2 for density
 
     dataloader = Breast_Cancer_Dataloader(
@@ -73,9 +80,9 @@ def main():
         image_format=image_format,
         norm_kind=norm_kind,
         batch_size=batch_size,
-        num_workers=8,
+        num_workers=1,
         train_transform=train_transform,
-        transform=None,
+        #        transform=transforms,
         task=task,  # 2 for density classification
     )
     # dataloader.train_dataset.plot(0)
