@@ -6,7 +6,7 @@ spec:
   template:
     spec:
       nodeSelector:
-        springfield.uit.no/gpu-type: rtx-2080-ti
+        springfield.uit.no/gpu-type: gtx-1080-ti
       hostIPC: true
       containers:
       - name: train
