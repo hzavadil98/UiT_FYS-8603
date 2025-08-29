@@ -3,8 +3,8 @@ import os
 from PIL import Image
 from tqdm import tqdm
 
-input_folder = "/Users/jazav7774/Data/Mammo/images_png"
-output_folder = "/Users/jazav7774/Data/Mammo/images_png_396"
+input_folder = "/storage/Mammo/images_png"
+output_folder = "/storage/Mammo/images_png_396"
 os.makedirs(output_folder, exist_ok=True)
 
 target_size = (369, 660)
