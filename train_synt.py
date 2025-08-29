@@ -73,7 +73,7 @@ def main():
     ##########################################################################################################
     model = TwoViewCNN(
         num_classes=3,
-        task=2,
+        task=1,
         num_views=2,
         input_channels=1,
         resnext_inplanes=16,
@@ -81,7 +81,7 @@ def main():
         scheduler_patience=5,  # Or any other value you prefer
         scheduler_factor=0.2,  # Or any other value you prefer
     )
-    run_name = f"Synth_data_task_{model.task}"
+    run_name = f"Synth_data_task_{model.task}_v2.0"
 
     # Set WANDB_CODE_DIR to save all code in the current directory and subdirectories
     os.environ["WANDB_CODE_DIR"] = "."

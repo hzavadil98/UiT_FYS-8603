@@ -6,6 +6,7 @@ import numpy as np
 import pytorch_lightning as pl
 import torch
 import torchvision.transforms.v2 as T
+from PIL import Image
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
@@ -25,7 +26,7 @@ class Synthetic_2v_Dataset(Dataset):
 
     def load_dataset(self):
         """
-        Load the dataset from disk if it exists.
+        Load labels, parameters and image paths created by create_dataset.
         """
         self.labels = np.load(self.image_save_dir / "labels.npy")
         self.parameters = np.load(
@@ -35,47 +36,53 @@ class Synthetic_2v_Dataset(Dataset):
             self.image_save_dir / "image_paths.npy", allow_pickle=True
         )
 
-        # Convert paths to pathlib.Path objects
-        # self.image_paths = [(pathlib.Path(p[0]), pathlib.Path(p[1])) for p in self.image_paths]
+        # Convert stored paths (strings) to pathlib.Path objects for use later
+        self.image_paths = [
+            (pathlib.Path(p[0]), pathlib.Path(p[1])) for p in self.image_paths
+        ]
 
     def create_dataset(self):
         """
-        Create the dataset by generating images and saving them to disk.
-        This method is called in the constructor.
+        Create the dataset by generating images and saving them to disk as PNGs.
         """
         # Create the save directory if it doesn't exist
         self.image_save_dir.mkdir(parents=True, exist_ok=True)
 
         self.labels = np.random.randint(0, 3, size=(self.n_samples, 2))
-
         np.save(self.image_save_dir / "labels.npy", self.labels)
 
+        # Generate and save parameters
         self.parameters = [
             self.generate_random_parameters(task1, task2)
             for task1, task2 in self.labels
         ]
-
         np.save(self.image_save_dir / "parameters.npy", self.parameters)
 
-        self.image_paths = []  # Store paths instead of images
+        # Generate images and save as PNG
+        self.image_paths = []
         progress_bar = tqdm(range(self.n_samples), desc="Generating synthetic images")
         for i in progress_bar:
-            view0_path = self.image_save_dir / f"image_{i}_view_0.pt"
-            view1_path = self.image_save_dir / f"image_{i}_view_1.pt"
-            self.image_paths.append((view0_path, view1_path))
+            view0_path = self.image_save_dir / f"image_{i}_view_0.png"
+            view1_path = self.image_save_dir / f"image_{i}_view_1.png"
 
-            image_tensors = self.generate_image(i)  # This still returns tensors
-            # save the images in
+            pil_images = self.generate_image(i)
 
-            torch.save(image_tensors[0], self.image_paths[i][0])  # Save view 0
-            torch.save(image_tensors[1], self.image_paths[i][1])  # Save view 1
+            pil_images[0].save(view0_path)
+            pil_images[1].save(view1_path)
+
+            # Store string paths so numpy can save/load reliably
+            self.image_paths.append((str(view0_path), str(view1_path)))
 
         np.save(self.image_save_dir / "image_paths.npy", self.image_paths)
 
+        self.image_paths = [
+            (pathlib.Path(p[0]), pathlib.Path(p[1])) for p in self.image_paths
+        ]
+
     def generate_sinusoidal_pattern(self, z, img_size):
-        fx = z[0]  # frequency x in [0, 10]
+        fx = z[0]  # frequency x
         fy = z[1]  # frequency y
-        phi = (2 * np.pi * z[2]) - np.pi  # phase in [-π, π]
+        phi = (2 * np.pi * z[2]) - np.pi
 
         x = np.linspace(-np.pi, np.pi, img_size)
         y = np.linspace(-np.pi, np.pi, img_size)
@@ -95,15 +102,14 @@ class Synthetic_2v_Dataset(Dataset):
         return image
 
     def generate_sinc_pattern(self, z, img_size):
-        a = z[0]  # main axis in [0, 2]
-        b = z[1]  # minor axis in [0, 2]
-        theta = np.pi * z[2]  # rotation angle in [0, π]
+        a = z[0]
+        b = z[1]
+        theta = np.pi * z[2]
 
         x = np.linspace(-10, 10, img_size)
         y = np.linspace(-10, 10, img_size)
         X, Y = np.meshgrid(x, y)
 
-        # Rotation transformation
         X_rot = X * np.cos(theta) - Y * np.sin(theta)
         Y_rot = X * np.sin(theta) + Y * np.cos(theta)
 
@@ -116,23 +122,9 @@ class Synthetic_2v_Dataset(Dataset):
 
     def generate_random_parameters(self, task1, task2):
         """
-        match task1:
-            case 0:
-                task1_indiv1 = [[0, 2], [7, 8]]
-                task1_indiv2 = [[11, 12], [0, 2]]
-                task1_shared = [[1, 3], [1, 3]]
-            case 1:
-                task1_indiv1 = [[0, 2], [9, 10]]
-                task1_indiv2 = [[9, 10], [0, 2]]
-                task1_shared = [[4, 6], [4, 6]]
-            case 2:
-                task1_indiv1 = [[0, 2], [11, 12]]
-                task1_indiv2 = [[7, 8], [0, 2]]
-                task1_shared = [[7, 9], [7, 9]]
-            case _:
-                print("Wrong class label")
+        Return the random parameters used to build the two views. Kept the
+        same logic as before so dataset semantics don't change.
         """
-
         match task1:
             case 0:
                 task1_indiv1 = [1, 7.5]
@@ -165,6 +157,40 @@ class Synthetic_2v_Dataset(Dataset):
             case _:
                 print("Wrong class label")
 
+        match task1:
+            case 0:
+                match task2:
+                    case 0:
+                        task_shared = [0.5, 0.5]
+                    case 1:
+                        task_shared = [2, 2]
+                    case 2:
+                        task_shared = [3.5, 3.5]
+                    case _:
+                        print("Wrong class label")
+            case 1:
+                match task2:
+                    case 0:
+                        task_shared = [5, 5]
+                    case 1:
+                        task_shared = [6.5, 6.5]
+                    case 2:
+                        task_shared = [8, 8]
+                    case _:
+                        print("Wrong class label")
+            case 2:
+                match task2:
+                    case 0:
+                        task_shared = [9.5, 9.5]
+                    case 1:
+                        task_shared = [11, 11]
+                    case 2:
+                        task_shared = [12.5, 12.5]
+                    case _:
+                        print("Wrong class label")
+            case _:
+                print("Wrong class label")
+
         sigma = 2
         task1_indiv1 = [
             np.random.normal(loc=task1_indiv1[0], scale=sigma),
@@ -182,22 +208,6 @@ class Synthetic_2v_Dataset(Dataset):
             np.random.uniform(0, 1),
         ]
 
-        """
-        task1_indiv1 = [
-            random.uniform(task1_indiv1[0][0], task1_indiv1[0][1]),
-            random.uniform(task1_indiv1[1][0], task1_indiv1[1][1]),
-            random.random(),
-        ]
-        task1_indiv2 = [
-            random.uniform(task1_indiv2[0][0], task1_indiv2[0][1]),
-            random.uniform(task1_indiv2[1][0], task1_indiv2[1][1]),
-            random.random(),
-        ]
-        task1_shared = [
-            random.uniform(task1_shared[0][0], task1_shared[0][1]),
-            random.uniform(task1_shared[1][0], task1_shared[1][1]),
-            random.random(),
-        ]"""
         sigma = 0.42
         task2_indiv1 = random.uniform(
             task2_indiv1[0][0], task2_indiv1[0][1]
@@ -215,23 +225,12 @@ class Synthetic_2v_Dataset(Dataset):
             [1, np.random.normal(loc=task2_shared[1], scale=sigma), 0]
         ) + np.array([0, 0, random.uniform(task2_shared[2][0], task2_shared[2][1])])
 
-        """
-        task2_indiv1 = random.uniform(
-            task2_indiv1[0][0], task2_indiv1[0][1]
-        ) * np.array([1, task2_indiv1[1], 0]) + np.array(
-            [0, 0, random.uniform(task2_indiv1[2][0], task2_indiv1[2][1])]
-        )
-        task2_indiv2 = random.uniform(
-            task2_indiv2[0][0], task2_indiv2[0][1]
-        ) * np.array([1, task2_indiv2[1], 0]) + np.array(
-            [0, 0, random.uniform(task2_indiv2[2][0], task2_indiv2[2][1])]
-        )
-        task2_shared = random.uniform(
-            task2_shared[0][0], task2_shared[0][1]
-        ) * np.array([1, task2_shared[1], 0]) + np.array(
-            [0, 0, random.uniform(task2_shared[2][0], task2_shared[2][1])]
-        )
-        """
+        sigma = 1.5
+        task_shared = [
+            np.random.normal(loc=task_shared[0], scale=sigma),
+            np.random.normal(loc=task_shared[1], scale=sigma),
+            np.random.uniform(0, 1),
+        ]
 
         return [
             task1_indiv1,
@@ -240,6 +239,7 @@ class Synthetic_2v_Dataset(Dataset):
             task2_indiv1,
             task2_indiv2,
             task2_shared,
+            task_shared,
         ]
 
     def generate_image(self, index):
@@ -252,6 +252,7 @@ class Synthetic_2v_Dataset(Dataset):
             task2_indiv1,
             task2_indiv2,
             task2_shared,
+            task_shared,
         ) = self.parameters[index]
 
         task1_indiv1 = self.generate_sinusoidal_pattern(
@@ -268,12 +269,16 @@ class Synthetic_2v_Dataset(Dataset):
         task2_indiv2 = self.generate_sinc_pattern(task2_indiv2, img_size=sub_img_size)
         task2_shared = self.generate_sinc_pattern(task2_shared, img_size=sub_img_size)
 
+        task_shared = self.generate_sinusoidal_pattern(
+            task_shared, img_size=sub_img_size
+        )
+
         fill = np.zeros((sub_img_size, sub_img_size), dtype=np.uint8)
 
         view1 = np.block(
             [
                 [task1_shared, task1_indiv1, fill],
-                [task1_indiv1, fill, task2_indiv1],
+                [task1_indiv1, task_shared, task2_indiv1],
                 [fill, task2_indiv1, task2_shared],
             ]
         )
@@ -281,34 +286,24 @@ class Synthetic_2v_Dataset(Dataset):
         view2 = np.block(
             [
                 [task1_indiv2, task1_shared, task1_indiv2],
-                [fill, fill, fill],
+                [fill, task_shared, fill],
                 [task2_indiv2, task2_shared, task2_indiv2],
             ]
         )
 
-        # Convert views to float32 and stack
-        images = [view1.astype(np.float32), view2.astype(np.float32)]
-
-        # Convert to torch tensor and add channel dimension if needed
-        tensor_images = [
-            torch.from_numpy(image).unsqueeze(0) for image in images
-        ]  # shape: (1, H, W)
-
-        # Concatenate local transform with self.transform if provided
-        # Resize using torchvision transforms
-        transform = T.Compose(
-            [
-                T.Resize((self.img_size, self.img_size)),  # expects (C, H, W)
-                T.Normalize(mean=[0], std=[255.0]),  # Normalize to [0, 1]
-            ]
+        # Convert uint8 arrays to PIL images and resize to target size
+        pil1 = (
+            Image.fromarray(view1)
+            .convert("L")
+            .resize((self.img_size, self.img_size), resample=Image.BILINEAR)
+        )
+        pil2 = (
+            Image.fromarray(view2)
+            .convert("L")
+            .resize((self.img_size, self.img_size), resample=Image.BILINEAR)
         )
 
-        # Apply transform to each view
-        tensor_images = [
-            transform(img) for img in tensor_images
-        ]  # shape: (1, img_size, img_size)
-
-        return tensor_images
+        return [pil1, pil2]
 
     def __len__(self):
         return self.n_samples
@@ -316,13 +311,17 @@ class Synthetic_2v_Dataset(Dataset):
     def __getitem__(self, idx):
         view0_path, view1_path = self.image_paths[idx]
 
-        image_view0 = torch.load(view0_path, weights_only=True)
-        image_view1 = torch.load(view1_path, weights_only=True)
+        # Load PNGs as grayscale PIL images and convert to float tensors [0,1]
+        pil0 = Image.open(view0_path).convert("L")
+        pil1 = Image.open(view1_path).convert("L")
+
+        img0 = torch.from_numpy(np.array(pil0).astype(np.float32) / 255.0).unsqueeze(0)
+        img1 = torch.from_numpy(np.array(pil1).astype(np.float32) / 255.0).unsqueeze(0)
 
         if self.transform is not None:
-            images = [self.transform(image_view0), self.transform(image_view1)]
+            images = [self.transform(img0), self.transform(img1)]
         else:
-            images = [image_view0, image_view1]
+            images = [img0, img1]
 
         return images, self.labels[idx, 0], self.labels[idx, 1]
 
@@ -335,7 +334,6 @@ class Synthetic_2v_Dataset(Dataset):
         fig, axs = plt.subplots(1, 2)
 
         for i in range(2):
-            # axs[i].imshow(images[i].permute(1, 2, 0))
             axs[i].imshow(images[i][0], cmap="gray")
             axs[i].axis("off")
             axs[i].set_xticks([])
