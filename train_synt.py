@@ -37,10 +37,12 @@ def main():
     if mps_available:
         accelerator = "mps"
         devices = 1
+        image_save_dir = "/Users/jazav7774/Data/Mammo/synthetic"
     elif torch.cuda.is_available():
         accelerator = "gpu"
         devices = torch.cuda.device_count()
         torch.set_float32_matmul_precision("high")
+        image_save_dir = "/storage/Mammo/synthetic"
         # torch.cuda.empty_cache()
     else:
         accelerator = "cpu"  # Default to CPU if neither is available
@@ -58,6 +60,7 @@ def main():
         train_transform=train_transform,
         transform=None,
         batch_size=32,
+        image_save_dir=image_save_dir,
     )
     ##########################################################################################################
 
