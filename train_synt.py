@@ -49,7 +49,8 @@ def main():
         [
             T.RandomHorizontalFlip(0.5),
             T.RandomVerticalFlip(0.5),
-            T.GaussianNoise(0.1, 0.1),
+            #        T.GaussianNoise(0.1, 0.1),
+            T.RandomRotation(degrees=10),
         ]
     )
     dataloader = Synthetic_2v_Dataloader(
@@ -61,27 +62,31 @@ def main():
     )
     ##########################################################################################################
 
-    # dataloader = Breast_Cancer_Dataloader(
-    #    root_folder="/storage/Mammo/",
-    #    annotation_csv="modified_breast-level_annotations.csv",
-    #    imagefolder_path="New_512",
-    #    batch_size=32,
-    #    num_workers=4,
-    #    train_transform=train_transform,
-    #    transform=transform,
-    # )
+    dataloader = Breast_Cancer_Dataloader(
+        root_folder="/storage/Mammo/",
+        annotation_csv="modified_breast-level_annotations.csv",
+        imagefolder_path="images_png_396",
+        image_format="png",
+        norm_kind="zscore",
+        batch_size=32,
+        num_workers=1,
+        train_transform=train_transform,
+        #        transform=transforms,
+        task=1,  # 2 for density classification
+    )
     ##########################################################################################################
     model = TwoViewCNN(
-        num_classes=3,
+        num_classes=5,
         task=1,
         num_views=2,
-        input_channels=1,
+        input_channels=3,
         resnext_inplanes=16,
         learning_rate=1e-3,
         scheduler_patience=5,  # Or any other value you prefer
         scheduler_factor=0.2,  # Or any other value you prefer
     )
-    run_name = f"Synth_data_task_{model.task}_v2.0"
+    run_name = "Breast_Cancer"
+    # run_name = f"Synth_data_task_{model.task}_v2.0"
 
     # Set WANDB_CODE_DIR to save all code in the current directory and subdirectories
     os.environ["WANDB_CODE_DIR"] = "."
