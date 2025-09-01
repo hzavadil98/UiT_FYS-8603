@@ -29,9 +29,6 @@ transform = T.Compose(
 
 
 def main():
-    """
-    Training single view featurizer models - 4 of them each on a specific "modality"
-    """
     mps_available = torch.backends.mps.is_available()
 
     if mps_available:
@@ -76,7 +73,7 @@ def main():
     ##########################################################################################################
     model = TwoViewCNN(
         num_classes=3,
-        task=1,
+        task=2,
         num_views=2,
         input_channels=1,
         resnext_inplanes=16,
