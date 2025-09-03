@@ -63,9 +63,9 @@ def main():
     #    ]
     # )
 
-    imagefolder_path = "New_512"
-    image_format = "dicom"
-    norm_kind = "zscore"
+    imagefolder_path = "images_png_396"
+    image_format = "png"
+    norm_kind = "dataset_zscore"
     batch_size = 32
     task = 1  # 1 for cancer, 2 for density
 
@@ -136,14 +136,14 @@ def main():
     # figure out if running with mps or gpu or cpu
 
     trainer = pl.Trainer(
-        max_epochs=50,
+        max_epochs=3,
         accelerator=accelerator,
         devices=devices,
         logger=wandb_logger,
         accumulate_grad_batches=4,
         callbacks=[checkpoint_callback, lr_monitor, early_stopping],
-        #    limit_train_batches=3,  # Only 3 training batches per epoch
-        #    limit_val_batches=2,
+        limit_train_batches=3,  # Only 3 training batches per epoch
+        limit_val_batches=2,
         log_every_n_steps=10,
     )
 
