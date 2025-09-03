@@ -63,9 +63,9 @@ def main():
 
     imagefolder_path = "New_512"
     image_format = "dicom"
-    norm_kind = "zscore"
+    norm_kind = "dataset_zscore"
     batch_size = 32
-    task = 2  # 1 for cancer, 2 for density
+    task = 1  # 1 for cancer, 2 for density
 
     dataloader = Breast_Cancer_Dataloader(
         root_folder=root_folder,
@@ -82,7 +82,7 @@ def main():
     # dataloader.train_dataset.plot(0)
 
     model = Two_view_model(
-        num_class=5,
+        num_class=5 if task == 1 else 4,
         weights_file="checkpoints/One_view_resnet.ckpt",
         drop=0.5,
         learning_rate=1e-5,
@@ -98,7 +98,7 @@ def main():
 
     wandb_logger = WandbLogger(
         project="Two_view_one_branch_model",
-        log_model="True",
+        log_model=True,
         name=f"Resnet_{imagefolder_path}_{norm_kind}_{'cancer' if task == 1 else 'density'}",
     )
     # wandb_logger.watch(model, log="all", log_freq=10)
