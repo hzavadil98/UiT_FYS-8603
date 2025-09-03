@@ -62,18 +62,18 @@ def main():
     )
     ##########################################################################################################
 
-    dataloader = Breast_Cancer_Dataloader(
-        root_folder="/storage/Mammo/",
-        annotation_csv="modified_breast-level_annotations.csv",
-        imagefolder_path="images_png_396",
-        image_format="png",
-        norm_kind="zscore",
-        batch_size=32,
-        num_workers=1,
-        train_transform=train_transform,
-        #        transform=transforms,
-        task=1,  # 2 for density classification
-    )
+    # dataloader = Breast_Cancer_Dataloader(
+    #    root_folder="/storage/Mammo/",
+    #    annotation_csv="modified_breast-level_annotations.csv",
+    #    imagefolder_path="images_png_396",
+    #    image_format="png",
+    #    norm_kind="zscore",
+    #    batch_size=32,
+    #    num_workers=1,
+    #    train_transform=train_transform,
+    #    #        transform=transforms,
+    #    task=1,  # 2 for density classification
+    # )
     ##########################################################################################################
     model = TwoViewCNN(
         num_classes=5,

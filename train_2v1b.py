@@ -1,3 +1,5 @@
+import os
+
 import pytorch_lightning as pl
 import torch
 import torchvision.transforms.v2 as T
@@ -63,7 +65,7 @@ def main():
 
     imagefolder_path = "New_512"
     image_format = "dicom"
-    norm_kind = "zscore"
+    norm_kind = "dataset_zscore"
     batch_size = 32
     task = 1  # 1 for cancer, 2 for density
 
@@ -96,6 +98,8 @@ def main():
     # )
     # check_dataloader_passes_model(dataloader, model)
 
+    # Ensure wandb saves the code of this repo
+    os.environ["WANDB_CODE_DIR"] = "."
     wandb_logger = WandbLogger(
         project="Two_view_one_branch_model",
         log_model=True,
@@ -111,9 +115,16 @@ def main():
         }
     )
 
+    # Build filename by injecting dataset variables now and leaving epoch as a
+    # runtime placeholder for the checkpoint formatter. Use an f-string to
+    # avoid accidental formatting errors when ModelCheckpoint formats the
+    # filename with metrics.
+    checkpoint_filename = (
+        f"2v1b_{imagefolder_path}_{norm_kind}_task{task:02d}-epoch:{{epoch:02d}}"
+    )
     checkpoint_callback = ModelCheckpoint(
         dirpath="checkpoints/",
-        filename="2v1b_{imagefolder_path}_{norm_kind}_task:{task:02d}-epoch:{epoch:02d}",
+        filename=checkpoint_filename,
         save_top_k=1,
         monitor="val_loss",
         mode="min",
