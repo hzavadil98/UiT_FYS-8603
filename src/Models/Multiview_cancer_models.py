@@ -4,10 +4,11 @@ import seaborn as sns
 import torch as th
 import torch.nn as nn
 import torchvision.models as models
-import wandb
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.utilities import rank_zero_only
 from torchmetrics.classification import Accuracy, F1Score, MulticlassConfusionMatrix
+
+import wandb
 
 
 class Breast_backbone(pl.LightningModule):
@@ -353,7 +354,7 @@ class Two_view_model(Breast_backbone):
         assert self.task in [1, 2], "Task must be either 1 (cancer) or 2 (density)"
 
         self.resnets = nn.ModuleList(
-            [Four_view_single_featurizer(num_class, drop) for _ in range(2)]
+            [Four_view_single_featurizer(5, drop) for _ in range(2)]
         )
 
         if weights_file is not None:
@@ -407,6 +408,16 @@ class Two_view_model(Breast_backbone):
         with th.no_grad():
             x, y1, y2 = batch
             x = [self.resnets[i](image) for i, image in enumerate(x)]
+        self.train()
+        return x
+
+    def get_fused_representations(self, batch):
+        self.eval()
+        with th.no_grad():
+            x, y1, y2 = batch
+            x = [self.resnets[i](image) for i, image in enumerate(x)]
+            x = th.cat(x, dim=1)
+            x = self.fc[:-1](x)  # Exclude the final classification layer
         self.train()
         return x
 
