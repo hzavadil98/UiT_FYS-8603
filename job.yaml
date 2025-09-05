@@ -1,7 +1,7 @@
 kind: Job
 apiVersion: batch/v1
 metadata:
-  name: train
+  name: train1
 spec:
   template:
     spec:
