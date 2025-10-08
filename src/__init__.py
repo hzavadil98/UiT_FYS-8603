@@ -9,6 +9,7 @@ __all__ = [
     "TwoViewCNN",
     "Synthetic_2v_Dataloader",
     "Mirai_two_view_model",
+    "Single_view_model",
 ]
 
 from .Dataloaders.Breast_Cancer import Breast_Cancer_Dataloader
@@ -21,5 +22,5 @@ from .Models.Multiview_cancer_models import (
     Four_view_two_branch_model,
     Two_view_model,
 )
-from .Models.Separate_view_models import Four_view_single_featurizer
+from .Models.Separate_view_models import Four_view_single_featurizer, Single_view_model
 from .Models.Two_view_grey_models import TwoViewCNN

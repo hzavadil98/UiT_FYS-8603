@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import imageio.v3 as iio
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -123,8 +124,6 @@ class Breast_Cancer_Dataset(Dataset):
         else:
             image_path = self.root_folder / self.imagefolder_path / (image_id + ".png")
             try:
-                import imageio.v3 as iio
-
                 image = torch.from_numpy(iio.imread(image_path).astype(np.float32))
                 image = image.unsqueeze(0).repeat(3, 1, 1)
             except Exception as e:

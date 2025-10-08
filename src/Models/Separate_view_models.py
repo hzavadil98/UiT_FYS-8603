@@ -69,12 +69,78 @@ class Breast_backbone(pl.LightningModule):
             sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax)
             ax.set_xlabel("Predicted")
             ax.set_ylabel("True")
-            ax.set_title(self.confmat_titles[i])
+            if len(self.confmat_titles) == 1:
+                ax.set_title(self.confmat_titles)
+            else:
+                ax.set_title(self.confmat_titles[i])
 
             # Log confusion matrix to wandb
             if isinstance(self.logger, WandbLogger):
                 wandb.log({self.confmat_titles[i]: wandb.Image(fig)})
             plt.close(fig)
+
+
+class Single_view_model(Breast_backbone):
+    """
+    nn.Module encapsulating a single resnet and adding an extra linear layer.
+    """
+
+    def __init__(
+        self, num_class, weights_file=None, drop=0.3, learning_rate=1e-3, task=1
+    ):
+        super(Single_view_model, self).__init__(num_class, learning_rate)
+
+        self.task = task
+
+        assert task in [1, 2], "Task must be 1 (cancer) or 2 (density)"
+
+        self.resnet = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
+        self.resnet.fc = nn.Identity()
+
+        self.fc = nn.Sequential(
+            nn.Linear(512, 128),
+            nn.ReLU(),
+            nn.Dropout(drop),
+            nn.Linear(128, num_class),
+        )
+
+    def forward(self, x):
+        x = self.resnet(x)
+        return self.fc(x)
+
+    def training_step(self, batch, batch_idx):
+        x, y1, y2 = batch
+        y = y1 if self.task == 1 else y2
+        y_hat = self(x)
+        metrics = self.compute_metrics(y_hat, y, prefix="train_")
+        self.log_dict(metrics, sync_dist=True)
+        return metrics["train_loss"]
+
+    def validation_step(self, batch, batch_idx):
+        x, y1, y2 = batch
+        y = y1 if self.task == 1 else y2
+        y_hat = self(x)
+        metrics = self.compute_metrics(y_hat, y, prefix="val_")
+        self.log_dict(metrics, sync_dist=True)
+        return metrics["val_loss"]
+
+    def test_step(self, batch, batch_idx):
+        x, y1, y2 = batch
+        y = y1 if self.task == 1 else y2
+        y_hat = self(x)
+        metrics = self.compute_metrics(y_hat, y, prefix="test_")
+        self.log_dict(metrics, sync_dist=True)
+
+        self.confusion_matrix[0].update(th.argmax(y_hat, dim=1), y)
+        return metrics["test_loss"]
+
+    def get_resnet_outputs(self, batch):
+        self.eval()
+        with th.no_grad():
+            x, y1, y2 = batch
+            x = self.resnet(x)
+        self.train()
+        return x
 
 
 class Four_view_single_featurizer(Breast_backbone):

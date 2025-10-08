@@ -83,12 +83,22 @@ class View_Cancer_dataset(Dataset):
             "BI-RADS 4": 3,
             "BI-RADS 5": 4,
         }
+        self.density_map = {
+            "DENSITY A": 0,
+            "DENSITY B": 1,
+            "DENSITY C": 2,
+            "DENSITY D": 3,
+        }
         # maps the labels to integers
         self.annotation.loc[:, "breast_birads"] = self.annotation["breast_birads"].map(
             self.label_map
         )
+        self.annotation.loc[:, "breast_density"] = self.annotation[
+            "breast_density"
+        ].map(self.density_map)
         # gets image labels
         self.labels = self.annotation["breast_birads"].values
+        self.densities = self.annotation["breast_density"].values
 
     def load_img_to_tensor(self, image_id) -> torch.Tensor:
         """Load a grayscale image from disk and convert it to a tensor of shape (3, H, W).
@@ -154,6 +164,8 @@ class View_Cancer_dataset(Dataset):
 
         label = self.labels[idx]
 
+        density = self.densities[idx]
+
         image = self.load_img_to_tensor(image_id)
 
         image = self.normalise_image(image, norm_kind=self.norm_kind)
@@ -161,7 +173,7 @@ class View_Cancer_dataset(Dataset):
         if self.transforms is not None:
             image = self.transforms(image)
 
-        return image, label
+        return image, label, density
 
     def plot(self, idx):
         # plots the image and a histogram of the pixel values into one figure
@@ -193,6 +205,7 @@ class View_Cancer_Dataloader(pl.LightningDataModule):
         laterality: str = None,
         train_transform=None,
         transform=None,
+        task: int = 1,
     ):
         super().__init__()
         self.view = view
@@ -201,6 +214,8 @@ class View_Cancer_Dataloader(pl.LightningDataModule):
         self.num_workers = num_workers
         self.train_transform = train_transform
         self.transform = transform
+        assert task in [1, 2], "Task must be 1 (cancer) or 2 (density)"
+        self.task = task
 
         self.train_dataset = View_Cancer_dataset(
             root_folder=root_folder,
@@ -236,7 +251,11 @@ class View_Cancer_Dataloader(pl.LightningDataModule):
             laterality=laterality,
         )
 
-        labels = self.train_dataset.labels
+        if self.task == 1:
+            labels = self.train_dataset.labels
+        else:
+            labels = self.train_dataset.densities
+
         class_sample_count = np.array(
             [len(np.where(labels == t)[0]) for t in np.unique(labels)]
         )
