@@ -59,7 +59,7 @@ def main():
             root_folder=root_folder,
             annotation_csv="modified_breast-level_annotations.csv",
             imagefolder_path=imagefolder_path,
-            imagefolder_format=image_format,
+            image_format=image_format,
             norm_kind=norm_kind,
             batch_size=batch_size,
             num_workers=4,
