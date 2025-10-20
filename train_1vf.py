@@ -47,85 +47,80 @@ def main():
         ]
     )
 
-    views = ["CC", "MLO"]
     imagefolder_path = "images_png_396"
     image_format = "png"
     norm_kind = "dataset_zscore"
     batch_size = 32
     task = 1
 
-    for i in range(2):
-        dataloader = View_Cancer_Dataloader(
-            root_folder=root_folder,
-            annotation_csv="modified_breast-level_annotations.csv",
-            imagefolder_path=imagefolder_path,
-            image_format=image_format,
-            norm_kind=norm_kind,
-            batch_size=batch_size,
-            num_workers=4,
-            view=views[i],
-            train_transform=train_transform,
-            task=task,
-        )
-        # dataloader.train_dataset.plot(0)
+    dataloader = View_Cancer_Dataloader(
+        root_folder=root_folder,
+        annotation_csv="modified_breast-level_annotations.csv",
+        imagefolder_path=imagefolder_path,
+        image_format=image_format,
+        norm_kind=norm_kind,
+        batch_size=batch_size,
+        num_workers=4,
+        train_transform=train_transform,
+        task=task,
+    )
+    # dataloader.train_dataset.plot(0)
 
-        model = Single_view_model(num_class=5, drop=0.4, learning_rate=1e-4, task=task)
-        # check_dataloader_passes_model(dataloader, model)
-        os.environ["WANDB_CODE_DIR"] = "."
-        wandb_logger = WandbLogger(
-            project="Single_View_Models",
-            log_model=True,
-            name=f"Model_{views[i]}_{'cancer' if task == 1 else 'density'}",
-        )
+    model = Single_view_model(num_class=5, drop=0.4, learning_rate=1e-4, task=task)
+    # check_dataloader_passes_model(dataloader, model)
+    os.environ["WANDB_CODE_DIR"] = "."
+    wandb_logger = WandbLogger(
+        project="Single_View_Models",
+        log_model=True,
+        name=f"Model_CC+MLO_{'cancer' if task == 1 else 'density'}",
+    )
 
-        wandb_logger.experiment.config.update(
-            {
-                "imagefolder_path": imagefolder_path,
-                "image_format": image_format,
-                "norm_kind": norm_kind,
-                "batch_size": batch_size,
-            }
-        )
+    wandb_logger.experiment.config.update(
+        {
+            "imagefolder_path": imagefolder_path,
+            "image_format": image_format,
+            "norm_kind": norm_kind,
+            "batch_size": batch_size,
+        }
+    )
 
-        checkpoint_filename = f"model_{views[i]}_{imagefolder_path}_{norm_kind}_task{task:02d}-epoch:{{epoch:02d}}"
+    checkpoint_filename = f"model_CC+MLO_{imagefolder_path}_{norm_kind}_task{task:02d}-epoch:{{epoch:02d}}"
 
-        checkpoint_callback = ModelCheckpoint(
-            dirpath="checkpoints/",
-            filename=checkpoint_filename,
-            save_top_k=1,
-            monitor="val_loss",
-            mode="min",
-            save_last=True,
-        )
-        lr_monitor = LearningRateMonitor(logging_interval="step")
-        early_stopping = EarlyStopping(monitor="val_loss", patience=8, mode="min")
+    checkpoint_callback = ModelCheckpoint(
+        dirpath="checkpoints/",
+        filename=checkpoint_filename,
+        save_top_k=1,
+        monitor="val_loss",
+        mode="min",
+        save_last=True,
+    )
+    lr_monitor = LearningRateMonitor(logging_interval="step")
+    early_stopping = EarlyStopping(monitor="val_loss", patience=8, mode="min")
 
-        trainer = pl.Trainer(
-            max_epochs=100,
-            accelerator=accelerator,
-            devices=devices,
-            logger=wandb_logger,
-            callbacks=[checkpoint_callback, lr_monitor, early_stopping],
-            log_every_n_steps=10,
-            # limit_train_batches=3,  # Only 5 training batches per epoch
-            # limit_val_batches=2,
-            # log_every_n_steps=1,
-        )
+    trainer = pl.Trainer(
+        max_epochs=100,
+        accelerator=accelerator,
+        devices=devices,
+        logger=wandb_logger,
+        callbacks=[checkpoint_callback, lr_monitor, early_stopping],
+        log_every_n_steps=10,
+        # limit_train_batches=3,  # Only 5 training batches per epoch
+        # limit_val_batches=2,
+        # log_every_n_steps=1,
+    )
 
-        # Train
-        trainer.fit(model, dataloader)
-        # Load best weights
-        print(
-            f"Finished training, loading the best epoch: {checkpoint_callback.best_model_path}"
-        )
-        model = Single_view_model.load_from_checkpoint(
-            checkpoint_callback.best_model_path
-        )
-        # Test
-        trainer.test(model, dataloader)
+    # Train
+    trainer.fit(model, dataloader)
+    # Load best weights
+    print(
+        f"Finished training, loading the best epoch: {checkpoint_callback.best_model_path}"
+    )
+    model = Single_view_model.load_from_checkpoint(checkpoint_callback.best_model_path)
+    # Test
+    trainer.test(model, dataloader)
 
-        # Finish wandb run
-        wandb.finish()
+    # Finish wandb run
+    wandb.finish()
 
     return 0
 
