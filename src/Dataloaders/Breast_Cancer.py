@@ -25,6 +25,7 @@ class Breast_Cancer_Dataset(Dataset):
         norm_kind: str = "dataset_zscore",
         split=None,
         transform=None,
+        cancer_label_type: str = "birads",
     ):
         """
         root_folder
@@ -45,6 +46,9 @@ class Breast_Cancer_Dataset(Dataset):
         )
         assert norm_kind in ["dataset_zscore", "zscore", "minmax", None], (
             'norm_kind must be either "dataset_zscore" or "zscore" or "minmax"'
+        )
+        assert cancer_label_type in ["birads", "diagnosis", "binary"], (
+            'cancer_label_type must be either "birads", "diagnosis" or "binary"'
         )
 
         self.split = split
@@ -71,13 +75,30 @@ class Breast_Cancer_Dataset(Dataset):
         # keep the number of distinct patient ids
         self.n_patients = len(self.patient_ids)
         # Stack patient_ids on itself
-        self.label_map = {
-            "BI-RADS 1": 0,
-            "BI-RADS 2": 1,
-            "BI-RADS 3": 2,
-            "BI-RADS 4": 3,
-            "BI-RADS 5": 4,
-        }
+        if cancer_label_type == "birads":
+            self.label_map = {
+                "BI-RADS 1": 0,
+                "BI-RADS 2": 1,
+                "BI-RADS 3": 2,
+                "BI-RADS 4": 3,
+                "BI-RADS 5": 4,
+            }
+        elif cancer_label_type == "diagnosis":
+            self.label_map = {
+                "BI-RADS 1": 0,
+                "BI-RADS 2": 1,
+                "BI-RADS 3": 1,
+                "BI-RADS 4": 2,
+                "BI-RADS 5": 2,
+            }
+        else:  # binary
+            self.label_map = {
+                "BI-RADS 1": 0,
+                "BI-RADS 2": 0,
+                "BI-RADS 3": 1,
+                "BI-RADS 4": 1,
+                "BI-RADS 5": 1,
+            }
         self.density_map = {
             "DENSITY A": 0,
             "DENSITY B": 1,
@@ -213,6 +234,8 @@ class Breast_Cancer_Dataloader(pl.LightningDataModule):
         train_transform=None,
         transform=None,
         task: int = 1,  # 1 for birads classification, 2 for density classification
+        use_train_sampler: bool = True,
+        cancer_label_type: str = "birads",
     ):
         super().__init__()
 
@@ -224,6 +247,8 @@ class Breast_Cancer_Dataloader(pl.LightningDataModule):
         self.train_transform = train_transform
         self.transform = transform
         self.task = task
+        self.use_train_sampler = use_train_sampler
+        self.cancer_label_type = cancer_label_type
         assert task in [1, 2], (
             "task must be either 1 (birads classification) or 2 (density classification)"
         )
@@ -236,6 +261,7 @@ class Breast_Cancer_Dataloader(pl.LightningDataModule):
             norm_kind=norm_kind,
             split="training",
             transform=self.train_transform,
+            cancer_label_type=cancer_label_type,
         )
         self.val_dataset = Breast_Cancer_Dataset(
             self.root_folder,
@@ -245,6 +271,7 @@ class Breast_Cancer_Dataloader(pl.LightningDataModule):
             norm_kind=norm_kind,
             split="validation",
             transform=self.transform,
+            cancer_label_type=cancer_label_type,
         )
         self.test_dataset = Breast_Cancer_Dataset(
             self.root_folder,
@@ -254,6 +281,7 @@ class Breast_Cancer_Dataloader(pl.LightningDataModule):
             norm_kind=norm_kind,
             split="test",
             transform=self.transform,
+            cancer_label_type=cancer_label_type,
         )
         if self.task == 1:
             labels = self.train_dataset.labels
@@ -269,6 +297,9 @@ class Breast_Cancer_Dataloader(pl.LightningDataModule):
         samples_weight = np.array([weight[t] for t in targets])
         samples_weight = torch.from_numpy(samples_weight)
         self.train_sampler = WeightedRandomSampler(samples_weight, len(samples_weight))
+
+        if not self.use_train_sampler:
+            self.train_sampler = None
 
     def train_dataloader(self):
         return DataLoader(

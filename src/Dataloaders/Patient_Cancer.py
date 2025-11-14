@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -20,6 +19,7 @@ class Patient_Cancer_Dataset(Dataset):
         norm_kind: str = "dataset_zscore",
         split=None,
         transform=None,
+        cancer_label_type: str = "birads",
     ):
         """
         root_folder
@@ -41,6 +41,9 @@ class Patient_Cancer_Dataset(Dataset):
         assert norm_kind in ["dataset_zscore", "zscore", "minmax", None], (
             'norm_kind must be either "dataset_zscore" or "zscore" or "minmax"'
         )
+        assert cancer_label_type in ["birads", "diagnosis", "binary"], (
+            'cancer_label_type must be either "birads", "diagnosis" or "binary"'
+        )
 
         self.split = split
         self.imagefolder_path = Path(imagefolder_path)
@@ -58,13 +61,30 @@ class Patient_Cancer_Dataset(Dataset):
         # finds all the unique study_ids = "patient_ids"
         self.patient_ids = self.annotation["study_id"].unique()
 
-        self.label_map = {
-            "BI-RADS 1": 0,
-            "BI-RADS 2": 1,
-            "BI-RADS 3": 2,
-            "BI-RADS 4": 3,
-            "BI-RADS 5": 4,
-        }
+        if cancer_label_type == "birads":
+            self.label_map = {
+                "BI-RADS 1": 0,
+                "BI-RADS 2": 1,
+                "BI-RADS 3": 2,
+                "BI-RADS 4": 3,
+                "BI-RADS 5": 4,
+            }
+        elif cancer_label_type == "diagnosis":
+            self.label_map = {
+                "BI-RADS 1": 0,
+                "BI-RADS 2": 1,
+                "BI-RADS 3": 1,
+                "BI-RADS 4": 2,
+                "BI-RADS 5": 2,
+            }
+        elif cancer_label_type == "binary":
+            self.label_map = {
+                "BI-RADS 1": 0,
+                "BI-RADS 2": 0,
+                "BI-RADS 3": 1,
+                "BI-RADS 4": 1,
+                "BI-RADS 5": 1,
+            }
         # maps the labels to integers
         self.annotation.loc[:, "breast_birads"] = self.annotation["breast_birads"].map(
             self.label_map
@@ -177,6 +197,7 @@ class Patient_Cancer_Dataloader(pl.LightningDataModule):
         num_workers=8,
         train_transform=None,
         transform=None,
+        cancer_label_type: str = "birads",
     ):
         """
         root_folder
@@ -197,30 +218,7 @@ class Patient_Cancer_Dataloader(pl.LightningDataModule):
         self.num_workers = num_workers
         self.train_transform = train_transform
         self.transform = transform
-        """
-        ############## do I want these transforms here? removed flipping the images ##############
-        self.train_transform = T.Compose(
-            [
-                T.ToImage(),
-                T.RandomRotation(degrees=10),
-                T.ToDtype(torch.float32, scale=True),
-                T.Normalize(
-                    mean=[781.0543, 781.0543, 781.0543],
-                    std=[1537.8235, 1537.8235, 1537.8235],
-                ),
-            ]
-        )
-        self.transform = T.Compose(
-            [
-                T.ToImage(),
-                T.ToDtype(torch.float32, scale=True),
-                T.Normalize(
-                    mean=[781.0543, 781.0543, 781.0543],
-                    std=[1537.8235, 1537.8235, 1537.8235],
-                ),
-            ]
-        )
-        """
+        self.cancer_label_type = cancer_label_type
 
         self.train_dataset = Patient_Cancer_Dataset(
             root_folder,
@@ -230,6 +228,7 @@ class Patient_Cancer_Dataloader(pl.LightningDataModule):
             norm_kind=norm_kind,
             split="training",
             transform=self.train_transform,
+            cancer_label_type=cancer_label_type,
         )
         self.val_dataset = Patient_Cancer_Dataset(
             root_folder,
@@ -239,6 +238,7 @@ class Patient_Cancer_Dataloader(pl.LightningDataModule):
             norm_kind=norm_kind,
             split="validation",
             transform=self.transform,
+            cancer_label_type=cancer_label_type,
         )
         self.test_dataset = Patient_Cancer_Dataset(
             root_folder,
@@ -248,6 +248,7 @@ class Patient_Cancer_Dataloader(pl.LightningDataModule):
             norm_kind=norm_kind,
             split="test",
             transform=self.transform,
+            cancer_label_type=cancer_label_type,
         )
 
         # Create a WeightedRandomSampler to handle the class imbalance, taking max birads for a patient and using it as the target

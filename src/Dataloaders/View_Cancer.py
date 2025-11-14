@@ -22,6 +22,7 @@ class View_Cancer_dataset(Dataset):
         transform=None,
         view: str = None,
         laterality: str = None,
+        cancer_label_type: str = "birads",
     ):
         """
         root_folder
@@ -46,6 +47,9 @@ class View_Cancer_dataset(Dataset):
         )
         assert norm_kind in ["dataset_zscore", "zscore", "minmax", None], (
             'norm_kind must be either "dataset_zscore" or "zscore" or "minmax"'
+        )
+        assert cancer_label_type in ["birads", "diagnosis", "binary"], (
+            'cancer_label_type must be either "birads", "diagnosis" or "binary"'
         )
 
         self.split = split
@@ -75,14 +79,30 @@ class View_Cancer_dataset(Dataset):
             self.annotation = self.annotation.loc[lateralityBool]
         # finds all the unique study_ids = "patient_ids"
         self.image_ids = self.annotation["image_id"].values
-
-        self.label_map = {
-            "BI-RADS 1": 0,
-            "BI-RADS 2": 1,
-            "BI-RADS 3": 2,
-            "BI-RADS 4": 3,
-            "BI-RADS 5": 4,
-        }
+        if cancer_label_type == "birads":
+            self.label_map = {
+                "BI-RADS 1": 0,
+                "BI-RADS 2": 1,
+                "BI-RADS 3": 2,
+                "BI-RADS 4": 3,
+                "BI-RADS 5": 4,
+            }
+        elif cancer_label_type == "diagnosis":
+            self.label_map = {
+                "BI-RADS 1": 0,
+                "BI-RADS 2": 1,
+                "BI-RADS 3": 1,
+                "BI-RADS 4": 2,
+                "BI-RADS 5": 2,
+            }
+        else:  # binary
+            self.label_map = {
+                "BI-RADS 1": 0,
+                "BI-RADS 2": 0,
+                "BI-RADS 3": 1,
+                "BI-RADS 4": 1,
+                "BI-RADS 5": 1,
+            }
         self.density_map = {
             "DENSITY A": 0,
             "DENSITY B": 1,
@@ -206,6 +226,7 @@ class View_Cancer_Dataloader(pl.LightningDataModule):
         train_transform=None,
         transform=None,
         task: int = 1,
+        cancer_label_type: str = "birads",
     ):
         super().__init__()
         self.view = view
@@ -216,6 +237,7 @@ class View_Cancer_Dataloader(pl.LightningDataModule):
         self.transform = transform
         assert task in [1, 2], "Task must be 1 (cancer) or 2 (density)"
         self.task = task
+        self.cancer_label_type = cancer_label_type
 
         self.train_dataset = View_Cancer_dataset(
             root_folder=root_folder,
@@ -227,6 +249,7 @@ class View_Cancer_Dataloader(pl.LightningDataModule):
             transform=self.train_transform,
             view=view,
             laterality=laterality,
+            cancer_label_type=cancer_label_type,
         )
         self.val_dataset = View_Cancer_dataset(
             root_folder=root_folder,
@@ -238,6 +261,7 @@ class View_Cancer_Dataloader(pl.LightningDataModule):
             transform=self.transform,
             view=view,
             laterality=laterality,
+            cancer_label_type=cancer_label_type,
         )
         self.test_dataset = View_Cancer_dataset(
             root_folder=root_folder,
@@ -249,6 +273,7 @@ class View_Cancer_Dataloader(pl.LightningDataModule):
             transform=self.transform,
             view=view,
             laterality=laterality,
+            cancer_label_type=cancer_label_type,
         )
 
         if self.task == 1:

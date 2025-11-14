@@ -67,7 +67,8 @@ def main():
     image_format = "png"
     norm_kind = "dataset_zscore"
     batch_size = 32
-    task = 2  # 1 for cancer, 2 for density
+    task = 1  # 1 for cancer, 2 for density
+    cancer_label_type = "diagnosis"
 
     dataloader = Breast_Cancer_Dataloader(
         root_folder=root_folder,
@@ -80,14 +81,21 @@ def main():
         train_transform=train_transform,
         #        transform=transforms,
         task=task,  # 2 for density classification
+        cancer_label_type=cancer_label_type,
     )
     # dataloader.train_dataset.plot(0)
 
     model = Two_view_model(
-        num_class=5 if task == 1 else 4,
+        num_class=4
+        if task == 2
+        else 5
+        if cancer_label_type == "birads"
+        else 3
+        if cancer_label_type == "diagnosis"
+        else 2,
         weights_file="checkpoints/One_view_resnet.ckpt",
         drop=0.5,
-        learning_rate=1e-5,
+        learning_rate=1e-4,
         task=task,  # 2 for density classification
     )
     # model = Mirai_two_view_model(
@@ -103,7 +111,7 @@ def main():
     wandb_logger = WandbLogger(
         project="Two_view_one_branch_model",
         log_model=True,
-        name=f"Resnet_{imagefolder_path}_{norm_kind}_{'cancer' if task == 1 else 'density'}",
+        name=f"Resnet_{imagefolder_path}_{norm_kind}_{'cancer' if task == 1 else 'density'}_{cancer_label_type}",
     )
     # wandb_logger.watch(model, log="all", log_freq=10)
     wandb_logger.experiment.config.update(
@@ -119,9 +127,7 @@ def main():
     # runtime placeholder for the checkpoint formatter. Use an f-string to
     # avoid accidental formatting errors when ModelCheckpoint formats the
     # filename with metrics.
-    checkpoint_filename = (
-        f"2v1b_{imagefolder_path}_{norm_kind}_task{task:02d}-epoch:{{epoch:02d}}"
-    )
+    checkpoint_filename = f"2v1b_{imagefolder_path}_{norm_kind}_task{task:02d}{'_' + (cancer_label_type if task == 1 else '')}-epoch:{{epoch:02d}}"
     checkpoint_callback = ModelCheckpoint(
         dirpath="checkpoints/",
         filename=checkpoint_filename,
