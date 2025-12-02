@@ -21,6 +21,7 @@ dependencies = [
     "pip>=25.0.1",
     "pydicom>=3.0.1",
     "pytorch-lightning>=2.5.0.post0",
+    "rpy2>=3.6.4",
     "ruff>=0.9.6",
     "scikit-dimension>=0.3.4",
     "scikit-image>=0.25.2",

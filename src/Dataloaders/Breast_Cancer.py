@@ -178,7 +178,7 @@ class Breast_Cancer_Dataset(Dataset):
         return image
 
     def __len__(self):
-        return 2 * len(self.patient_ids)
+        return 2 * self.n_patients
 
     def __getitem__(self, idx):
         laterality = "R" if idx >= self.n_patients else "L"
