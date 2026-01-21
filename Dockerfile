@@ -34,19 +34,22 @@ FROM nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/UTC
 
-# Install Python 3.12
+# Install Python 3.12 and development headers
 RUN apt-get update && apt-get install -y \
     software-properties-common \
     && add-apt-repository ppa:deadsnakes/ppa -y \
     && apt-get update && apt-get install -y \
-    python3.12 python3.12-venv \
+    python3.12 python3.12-venv python3.12-dev \
+    build-essential \
     git curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Install R before Python dependencies
-RUN apt-get update && apt-get install -y r-base
-# Install build dependencies for Python packages
-RUN apt-get update && apt-get install -y python3-dev build-essential
+RUN apt-get update && apt-get install -y \
+    r-base \
+    r-base-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 # Make python3 point to 3.12
 RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1
 
