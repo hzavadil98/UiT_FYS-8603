@@ -45,7 +45,8 @@ RUN apt-get update && apt-get install -y \
 
 # Install R before Python dependencies
 RUN apt-get update && apt-get install -y r-base
-
+# Install build dependencies for Python packages
+RUN apt-get update && apt-get install -y python3-dev build-essential
 # Make python3 point to 3.12
 RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1
 
