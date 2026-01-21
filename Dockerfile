@@ -43,6 +43,9 @@ RUN apt-get update && apt-get install -y \
     git curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Install R before Python dependencies
+RUN apt-get update && apt-get install -y r-base
+
 # Make python3 point to 3.12
 RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1
 
