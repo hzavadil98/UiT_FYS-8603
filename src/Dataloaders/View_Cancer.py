@@ -227,6 +227,7 @@ class View_Cancer_Dataloader(pl.LightningDataModule):
         transform=None,
         task: int = 1,
         cancer_label_type: str = "birads",
+        use_train_sampler=True,
     ):
         super().__init__()
         self.view = view
@@ -238,6 +239,7 @@ class View_Cancer_Dataloader(pl.LightningDataModule):
         assert task in [1, 2], "Task must be 1 (cancer) or 2 (density)"
         self.task = task
         self.cancer_label_type = cancer_label_type
+        self.use_trainer_sampler = use_train_sampler
 
         self.train_dataset = View_Cancer_dataset(
             root_folder=root_folder,
@@ -293,7 +295,7 @@ class View_Cancer_Dataloader(pl.LightningDataModule):
         return DataLoader(
             self.train_dataset,
             batch_size=self.batch_size,
-            sampler=self.train_sampler,
+            sampler=self.train_sampler if self.use_trainer_sampler else None,
             num_workers=self.num_workers,
             pin_memory=True,
             persistent_workers=True,

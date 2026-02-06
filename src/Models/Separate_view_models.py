@@ -95,12 +95,13 @@ class Single_view_model(Breast_backbone):
         assert task in [1, 2], "Task must be 1 (cancer) or 2 (density)"
 
         self.resnet = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
-        self.resnet.fc = nn.Identity()
-
-        self.fc = nn.Sequential(
+        self.resnet.fc = nn.Sequential(
             nn.Linear(512, 128),
             nn.ReLU(),
             nn.Dropout(drop),
+        )
+
+        self.fc = nn.Sequential(
             nn.Linear(128, num_class),
         )
 
@@ -141,6 +142,82 @@ class Single_view_model(Breast_backbone):
             x = self.resnet(x)
         self.train()
         return x
+
+    def get_activation(self, name):
+        """
+        Hook function to capture activations from a layer.
+        """
+
+        def hook(model, input, output):
+            self.activations[name] = output.detach()
+
+        return hook
+
+    def get_gradient(self, name):
+        """
+        Hook function to capture gradients from a layer.
+        """
+
+        def hook(model, input, output):
+            self.gradients[name] = output[0].detach()
+
+        return hook
+
+    def generate_grad_cam(self, x, target_class=None):
+        """
+        Generate Grad-CAM heatmap for the input image.
+
+        Args:
+            x: Input tensor of shape (batch_size, channels, height, width)
+            target_class: Target class for computing gradients. If None, uses predicted class.
+
+        Returns:
+            cam: Grad-CAM heatmap of shape (batch_size, height, width)
+        """
+        self.eval()
+        self.activations = {}
+        self.gradients = {}
+
+        # Register hooks on the last convolutional layer (layer4)
+        self.resnet.layer4[-1].register_forward_hook(self.get_activation("layer4"))
+        self.resnet.layer4[-1].register_full_backward_hook(self.get_gradient("layer4"))
+
+        # Forward pass - clone to make it a leaf variable that can require gradients
+        x = x.clone().detach().requires_grad_(True)
+        output = self(x)
+
+        # Get target class
+        if target_class is None:
+            target_class = output.argmax(dim=1)
+
+        # Backward pass
+        self.zero_grad()
+        one_hot = th.zeros_like(output)
+        one_hot.scatter_(1, target_class.unsqueeze(1), 1.0)
+        output.backward(gradient=one_hot)
+
+        # Compute Grad-CAM
+        gradients = self.gradients["layer4"]
+        activations = self.activations["layer4"]
+
+        # Global average pooling of gradients
+        weights = gradients.mean(dim=[2, 3], keepdim=True)
+
+        # Compute weighted combination of activations
+        cam = (weights * activations).sum(dim=1)
+
+        # Apply ReLU
+        cam = th.nn.functional.relu(cam)
+
+        # Normalize
+        batch_size = cam.shape[0]
+        for i in range(batch_size):
+            cam_min = cam[i].min()
+            cam_max = cam[i].max()
+            if cam_max > cam_min:
+                cam[i] = (cam[i] - cam_min) / (cam_max - cam_min)
+
+        return cam.detach().cpu()
 
 
 class Four_view_single_featurizer(Breast_backbone):

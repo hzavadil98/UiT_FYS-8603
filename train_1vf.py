@@ -72,7 +72,7 @@ def main():
     wandb_logger = WandbLogger(
         project="Single_View_Models",
         log_model=True,
-        name=f"Model_CC+MLO_{'cancer' if task == 1 else 'density'}",
+        name=f"Model_single_view_{'cancer' if task == 1 else 'density'}",
     )
 
     wandb_logger.experiment.config.update(
@@ -84,7 +84,7 @@ def main():
         }
     )
 
-    checkpoint_filename = f"model_CC+MLO_{imagefolder_path}_{norm_kind}_task{task:02d}-epoch:{{epoch:02d}}"
+    checkpoint_filename = f"model_single_view_{imagefolder_path}_{norm_kind}_task{task:02d}-epoch:{{epoch:02d}}"
 
     checkpoint_callback = ModelCheckpoint(
         dirpath="checkpoints/",
@@ -104,6 +104,7 @@ def main():
         logger=wandb_logger,
         callbacks=[checkpoint_callback, lr_monitor, early_stopping],
         log_every_n_steps=10,
+        accumulate_grad_batches=4,
         # limit_train_batches=3,  # Only 5 training batches per epoch
         # limit_val_batches=2,
         # log_every_n_steps=1,
