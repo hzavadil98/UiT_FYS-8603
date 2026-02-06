@@ -51,7 +51,7 @@ def main():
     image_format = "png"
     norm_kind = "dataset_zscore"
     batch_size = 32
-    task = 1
+    task = 2
 
     dataloader = View_Cancer_Dataloader(
         root_folder=root_folder,
