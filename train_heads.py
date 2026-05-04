@@ -1,49 +1,19 @@
 import os
 from pathlib import Path
 
-print("[DEBUG] Importing pytorch_lightning...", flush=True)
 import pytorch_lightning as pl
-
-print("[DEBUG] ✓ pytorch_lightning imported", flush=True)
-
-print("[DEBUG] Importing torch...", flush=True)
 import torch
-
-print("[DEBUG] ✓ torch imported", flush=True)
-
-print("[DEBUG] Importing torchvision...", flush=True)
 import torchvision.transforms.v2 as T
-
-print("[DEBUG] ✓ torchvision imported", flush=True)
-
-print("[DEBUG] Importing pytorch_lightning callbacks...", flush=True)
 from pytorch_lightning.callbacks import (
     EarlyStopping,
     LearningRateMonitor,
     ModelCheckpoint,
 )
-
-print("[DEBUG] ✓ callbacks imported", flush=True)
-
-print("[DEBUG] Importing WandbLogger...", flush=True)
 from pytorch_lightning.loggers import WandbLogger
 
-print("[DEBUG] ✓ WandbLogger imported", flush=True)
-
-print("[DEBUG] Importing wandb...", flush=True)
 import wandb
-
-print("[DEBUG] ✓ wandb imported", flush=True)
-
-print("[DEBUG] Importing AJIVE from python_packages...", flush=True)
 from python_packages import AJIVE
-
-print("[DEBUG] ✓ AJIVE imported", flush=True)
-
-print("[DEBUG] Importing src models...", flush=True)
 from src import Single_view_AJIVE_heads, Single_view_model, View_Cancer_Dataloader
-
-print("[DEBUG] ✓ src models imported", flush=True)
 
 
 def get_runtime_config():
@@ -230,7 +200,6 @@ def train_and_test_heads(
 
 def main():
     """Train the cancer and density AJIVE head models and log them to wandb."""
-    print("Setting up runtime configuration...")
     runtime = get_runtime_config()
     root_folder = runtime["root_folder"]
     # working_folder = runtime["working_folder"]
@@ -262,7 +231,6 @@ def main():
         task=task,
         use_train_sampler=True,
     )
-    print("flag 1")
     print(os.getcwd())
     print(os.listdir(os.getcwd()))
     model_cancer = Single_view_model.load_from_checkpoint(
@@ -271,7 +239,6 @@ def main():
     model_density = Single_view_model.load_from_checkpoint(
         "artifacts/model-vjzmam1e:v0/model.ckpt"
     )
-    print("flag 2")
 
     feature_dir = Path("saved_features/One_View_Canc_vs_Dens")
     feature_splits = load_saved_ajive_inputs(feature_dir)

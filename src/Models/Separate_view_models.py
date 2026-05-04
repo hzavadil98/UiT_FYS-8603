@@ -107,7 +107,6 @@ class Single_view_model(Breast_backbone):
             nn.ReLU(),
             nn.Dropout(drop),
         )
-        print("inner flag 2")
         self.fc = nn.Sequential(
             nn.Linear(128, num_class),
         )
