@@ -98,19 +98,10 @@ class Single_view_model(Breast_backbone):
         self.task = task
 
         assert task in [1, 2], "Task must be 1 (cancer) or 2 (density)"
-        print("inner flag 1.5")
-        # Try a short connectivity check to avoid hanging when torchvision
-        # attempts to download pretrained weights on machines without network
-        try:
-            print("flag 1.6")
-            socket.create_connection(("download.pytorch.org", 443), timeout=2)
-            print("flag 1.7")
+
+        self.resnet = models.resnet18(weights=None)
+        if weights_file is not None:
             self.resnet = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
-        except Exception:
-            print(
-                "Warning: cannot reach model download host; initializing ResNet18 without pretrained weights."
-            )
-            self.resnet = models.resnet18(weights=None)
         self.resnet.fc = nn.Sequential(
             nn.Linear(512, 128),
             nn.ReLU(),
