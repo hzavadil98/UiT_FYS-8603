@@ -200,6 +200,7 @@ def train_and_test_heads(
 
 def main():
     """Train the cancer and density AJIVE head models and log them to wandb."""
+    print("Setting up runtime configuration...")
     runtime = get_runtime_config()
     root_folder = runtime["root_folder"]
     # working_folder = runtime["working_folder"]
