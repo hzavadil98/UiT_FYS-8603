@@ -17,7 +17,7 @@ from python_packages import AJIVE
 from src import Single_view_AJIVE_heads, Single_view_model, View_Cancer_Dataloader
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-PYTHON_PACKAGES_DIR = SCRIPT_DIR / "python_packages"
+PYTHON_PACKAGES_DIR = SCRIPT_DIR / "python_packages/jive"
 if str(PYTHON_PACKAGES_DIR) not in sys.path:
     sys.path.insert(0, str(PYTHON_PACKAGES_DIR))
 
