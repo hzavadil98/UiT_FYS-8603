@@ -12,6 +12,8 @@ echo "Running the python script..."
 
 #python3 train_1vf.py
 
-python3 train_heads.py
+#python3 train_heads.py
+
+python3 test.py
 
 echo "Script execution completed."
