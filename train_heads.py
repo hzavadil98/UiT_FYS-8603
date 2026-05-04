@@ -105,29 +105,8 @@ def train_and_test_heads(
     batch_size,
     num_workers,
 ):
-    """Train the three AJIVE heads sequentially and log everything to wandb."""
+    """Train the three AJIVE heads sequentially and log each as a separate wandb run."""
     os.environ["WANDB_CODE_DIR"] = "."
-
-    wandb_logger = WandbLogger(
-        project=project_name,
-        log_model=True,
-        name=f"AJIVE_heads_{task_name}",
-    )
-
-    wandb_logger.experiment.config.update(
-        {
-            "task_name": task_name,
-            "root_folder": root_folder,
-            "imagefolder_path": imagefolder_path,
-            "image_format": image_format,
-            "norm_kind": norm_kind,
-            "batch_size": batch_size,
-            "num_workers": num_workers,
-            "head_names": list(head_names),
-            "max_epochs": max_epochs,
-            "ajive_init_signal_ranks": [15, 15],
-        }
-    )
 
     model = build_head_model(
         base_model=base_model,
@@ -142,6 +121,29 @@ def train_and_test_heads(
     for head_name in head_names:
         print(f"\nTraining {task_name} AJIVE head: {head_name}")
         print("-" * 70)
+
+        # Create a separate wandb run for each head
+        wandb_logger = WandbLogger(
+            project=project_name,
+            log_model=True,
+            name=f"AJIVE_heads_{task_name}_{head_name}",
+            settings=wandb.Settings(init_timeout=300),
+        )
+
+        wandb_logger.experiment.config.update(
+            {
+                "task_name": task_name,
+                "head_name": head_name,
+                "root_folder": root_folder,
+                "imagefolder_path": imagefolder_path,
+                "image_format": image_format,
+                "norm_kind": norm_kind,
+                "batch_size": batch_size,
+                "num_workers": num_workers,
+                "max_epochs": max_epochs,
+                "ajive_init_signal_ranks": [15, 15],
+            }
+        )
 
         model.set_active_head(head_name)
 
@@ -190,7 +192,9 @@ def train_and_test_heads(
 
         trainer.test(model, dataloader)
 
-    wandb.finish()
+        # Finish the current run before starting the next head
+        wandb.finish()
+
     return model
 
 
