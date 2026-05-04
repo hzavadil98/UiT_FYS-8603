@@ -232,7 +232,7 @@ def main():
         use_train_sampler=True,
     )
     print("flag 1")
-
+    print(os.getcwd())
     model_cancer = Single_view_model.load_from_checkpoint(
         "artifacts/model-ln6ychcp:v0/model.ckpt"
     )
