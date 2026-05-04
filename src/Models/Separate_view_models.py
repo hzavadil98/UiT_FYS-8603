@@ -96,7 +96,7 @@ class Single_view_model(Breast_backbone):
         self.task = task
 
         assert task in [1, 2], "Task must be 1 (cancer) or 2 (density)"
-
+        print("inner flag 1.5")
         self.resnet = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
         self.resnet.fc = nn.Sequential(
             nn.Linear(512, 128),
