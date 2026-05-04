@@ -21,6 +21,7 @@ class PyDIVAS:
         try:
             ro.r("library(DIVAS)")
             self._define_r_function()
+            self._define_r_function_Phase1()
             print("DIVAS R package loaded successfully.")
         except Exception as e:
             raise RuntimeError(f"Failed to load DIVAS R package: {e}")
@@ -97,6 +98,124 @@ class PyDIVAS:
         """
         ro.r(r_code)
         print("DIVAS_my function defined in R environment.")
+
+    def _define_r_function_Phase1(self):
+        """Define the DIVAS_my R function in the R environment."""
+        r_code = """
+        DIVAS_my_Phase1 <- function(datablock, nsim = 400, iprint = FALSE, colCent = FALSE, rowCent = FALSE, figdir = NULL, seed = NULL){
+          nb <- length(datablock)
+          dataname <- names(datablock)
+          if(is.null(dataname)){
+            warning("Input datablock is unnamed, generic names for data blocks generated.")
+            dataname <- paste0("Datablock", 1:nb)
+          }
+
+          # Some tuning parameters for algorithms
+          theta0 <- 45
+          optArgin <- list(0.5, 100, 1.05, 50, 1e-3, 1e-3)
+          filterPerc <- 1 - (2 / (1 + sqrt(5))) # "Golden Ratio"
+          noisepercentile <- rep(0.5, nb)
+
+          rowSpaces <- vector("list", nb)
+          for (ib in seq_len(nb)) {
+            rowSpaces[[ib]] <- 0
+            datablock[[ib]] <- MatCenterJP(datablock[[ib]], colCent, rowCent)
+          }
+          
+          Phase1 <- DJIVESignalExtractJP(
+            datablock = datablock, nsim = nsim,
+            iplot = FALSE, colCent = colCent, rowCent = rowCent, cull = filterPerc, noisepercentile = noisepercentile,
+            seed = seed
+          )
+
+          return(Phase1)
+        }
+        """
+        ro.r(r_code)
+        print("DIVAS_my function defined in R environment.")
+
+    def run_Phase1(
+        self,
+        datablock: Dict[str, np.ndarray],
+        nsim: int = 400,
+        iprint: bool = False,
+        colCent: bool = False,
+        rowCent: bool = False,
+        figdir: Optional[str] = None,
+        seed: Optional[int] = None,
+    ) -> Dict:
+        """
+        Run Phase 1 of DIVAS analysis on multiple data blocks.
+
+        Parameters
+        ----------
+        datablock : Dict[str, np.ndarray]
+            Dictionary of data blocks where keys are block names and values are numpy arrays.
+            Each array should be 2D in Python convention: (n_samples, n_features).
+            Matrices will be automatically transposed to R convention (n_features, n_samples).
+        nsim : int, optional
+            Number of simulations for signal extraction (default: 400).
+        iprint : bool, optional
+            Whether to print progress information (default: False).
+        colCent : bool, optional
+            Whether to center columns (default: False).
+        rowCent : bool, optional
+            Whether to center rows (default: False).
+        figdir : str, optional
+            Directory to save figures (default: None).
+        seed : int, optional
+            Random seed for reproducibility (default: None).
+
+        Returns
+        -------
+        Dict
+            Dictionary containing Phase1 results.
+
+        Examples
+        --------
+        >>> divas = PyDIVAS()
+        >>> data = {
+        ...     'Block1': np.random.randn(100, 50),  # 100 samples, 50 features
+        ...     'Block2': np.random.randn(100, 30)   # 100 samples, 30 features
+        ... }
+        >>> results = divas.run_divas(data, nsim=200, seed=42)
+        """
+        # Convert Python dictionary to R named list
+        # IMPORTANT: Transpose matrices from Python (n_samples, n_features)
+        # to R convention (n_features, n_samples)
+        # R DIVAS expects all matrices to have the same number of COLUMNS (samples)
+        with localconverter(ro.default_converter + numpy2ri.converter):
+            r_datablock = ro.ListVector(
+                {
+                    name: ro.r.matrix(data.T, nrow=data.shape[1], ncol=data.shape[0])
+                    for name, data in datablock.items()
+                }
+            )
+
+        # Prepare arguments
+        kwargs = {
+            "datablock": r_datablock,
+            "nsim": nsim,
+            "iprint": iprint,
+            "colCent": colCent,
+            "rowCent": rowCent,
+        }
+
+        if figdir is not None:
+            kwargs["figdir"] = figdir
+
+        if seed is not None:
+            kwargs["seed"] = seed
+
+        # Call the R function
+        print(f"Running DIVAS with {len(datablock)} data blocks...")
+        self.r_result = ro.r["DIVAS_my_Phase1"](**kwargs)
+
+        # Convert R result to Python dictionary
+        self.result = self._convert_r_result(self.r_result)
+        print("DIVAS analysis completed.")
+
+        return self.result
 
     def run_divas(
         self,

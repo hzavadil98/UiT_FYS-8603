@@ -77,8 +77,8 @@ class View_Cancer_dataset(Dataset):
             lateralityBool = True
             lateralityBool = self.annotation["laterality"] == self.laterality
             self.annotation = self.annotation.loc[lateralityBool]
-        # finds all the unique study_ids = "patient_ids"
-        self.image_ids = self.annotation["image_id"].values
+
+        self.image_ids = self.annotation["image_id"].unique()
         if cancer_label_type == "birads":
             self.label_map = {
                 "BI-RADS 1": 0,
