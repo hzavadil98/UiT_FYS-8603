@@ -92,7 +92,7 @@ class Single_view_model(Breast_backbone):
         self, num_class, weights_file=None, drop=0.3, learning_rate=1e-3, task=1
     ):
         super(Single_view_model, self).__init__(num_class, learning_rate)
-
+        print("inner flag 1")
         self.task = task
 
         assert task in [1, 2], "Task must be 1 (cancer) or 2 (density)"
@@ -103,7 +103,7 @@ class Single_view_model(Breast_backbone):
             nn.ReLU(),
             nn.Dropout(drop),
         )
-
+        print("inner flag 2")
         self.fc = nn.Sequential(
             nn.Linear(128, num_class),
         )
