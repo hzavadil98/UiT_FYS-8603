@@ -102,7 +102,9 @@ class Single_view_model(Breast_backbone):
         # Try a short connectivity check to avoid hanging when torchvision
         # attempts to download pretrained weights on machines without network
         try:
+            print("flag 1.6")
             socket.create_connection(("download.pytorch.org", 443), timeout=2)
+            print("flag 1.7")
             self.resnet = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
         except Exception:
             print(
