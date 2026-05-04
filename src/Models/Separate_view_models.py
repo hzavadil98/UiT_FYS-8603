@@ -1,3 +1,5 @@
+import socket
+
 import matplotlib.pyplot as plt
 import pytorch_lightning as pl
 import seaborn as sns
@@ -92,12 +94,21 @@ class Single_view_model(Breast_backbone):
         self, num_class, weights_file=None, drop=0.3, learning_rate=1e-3, task=1
     ):
         super(Single_view_model, self).__init__(num_class, learning_rate)
-        print("inner flag 1")
+
         self.task = task
 
         assert task in [1, 2], "Task must be 1 (cancer) or 2 (density)"
         print("inner flag 1.5")
-        self.resnet = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
+        # Try a short connectivity check to avoid hanging when torchvision
+        # attempts to download pretrained weights on machines without network
+        try:
+            socket.create_connection(("download.pytorch.org", 443), timeout=2)
+            self.resnet = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
+        except Exception:
+            print(
+                "Warning: cannot reach model download host; initializing ResNet18 without pretrained weights."
+            )
+            self.resnet = models.resnet18(weights=None)
         self.resnet.fc = nn.Sequential(
             nn.Linear(512, 128),
             nn.ReLU(),
@@ -318,7 +329,15 @@ class Four_view_single_featurizer(Breast_backbone):
 
         self.confmat_titles = [f"Confusion Matrix view-{view}"]
 
-        self.resnet = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
+        # For the four-view featurizer do the same connectivity-guarded load
+        try:
+            socket.create_connection(("download.pytorch.org", 443), timeout=2)
+            self.resnet = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
+        except Exception:
+            print(
+                "Warning: cannot reach model download host; initializing ResNet18 without pretrained weights."
+            )
+            self.resnet = models.resnet18(weights=None)
         self.resnet.fc = nn.Identity()
 
         self.fc = nn.Sequential(
