@@ -233,6 +233,7 @@ def main():
     )
     print("flag 1")
     print(os.getcwd())
+    print(os.listdir(os.getcwd()))
     model_cancer = Single_view_model.load_from_checkpoint(
         "artifacts/model-ln6ychcp:v0/model.ckpt"
     )
