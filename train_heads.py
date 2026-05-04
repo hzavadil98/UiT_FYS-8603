@@ -1,19 +1,49 @@
 import os
 from pathlib import Path
 
+print("[DEBUG] Importing pytorch_lightning...", flush=True)
 import pytorch_lightning as pl
+
+print("[DEBUG] ✓ pytorch_lightning imported", flush=True)
+
+print("[DEBUG] Importing torch...", flush=True)
 import torch
+
+print("[DEBUG] ✓ torch imported", flush=True)
+
+print("[DEBUG] Importing torchvision...", flush=True)
 import torchvision.transforms.v2 as T
+
+print("[DEBUG] ✓ torchvision imported", flush=True)
+
+print("[DEBUG] Importing pytorch_lightning callbacks...", flush=True)
 from pytorch_lightning.callbacks import (
     EarlyStopping,
     LearningRateMonitor,
     ModelCheckpoint,
 )
+
+print("[DEBUG] ✓ callbacks imported", flush=True)
+
+print("[DEBUG] Importing WandbLogger...", flush=True)
 from pytorch_lightning.loggers import WandbLogger
 
+print("[DEBUG] ✓ WandbLogger imported", flush=True)
+
+print("[DEBUG] Importing wandb...", flush=True)
 import wandb
+
+print("[DEBUG] ✓ wandb imported", flush=True)
+
+print("[DEBUG] Importing AJIVE from python_packages...", flush=True)
 from python_packages import AJIVE
+
+print("[DEBUG] ✓ AJIVE imported", flush=True)
+
+print("[DEBUG] Importing src models...", flush=True)
 from src import Single_view_AJIVE_heads, Single_view_model, View_Cancer_Dataloader
+
+print("[DEBUG] ✓ src models imported", flush=True)
 
 
 def get_runtime_config():
