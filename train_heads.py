@@ -231,6 +231,7 @@ def main():
         task=task,
         use_train_sampler=True,
     )
+    print("flag 1")
 
     model_cancer = Single_view_model.load_from_checkpoint(
         "artifacts/model-ln6ychcp:v0/model.ckpt"
@@ -238,6 +239,7 @@ def main():
     model_density = Single_view_model.load_from_checkpoint(
         "artifacts/model-vjzmam1e:v0/model.ckpt"
     )
+    print("flag 2")
 
     feature_dir = Path("saved_features/One_View_Canc_vs_Dens")
     feature_splits = load_saved_ajive_inputs(feature_dir)
