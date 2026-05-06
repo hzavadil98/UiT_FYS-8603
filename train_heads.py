@@ -68,9 +68,9 @@ def load_saved_ajive_inputs(feature_dir: Path):
     return splits
 
 
-def fit_ajive_model(train_cancer_features, train_density_features):
+def fit_ajive_model(train_cancer_features, train_density_features, ranks=[15, 15]):
     """Fit the shared AJIVE model used by both head-training runs."""
-    ajive_model = AJIVE(init_signal_ranks=[15, 15], n_jobs=1, center=True)
+    ajive_model = AJIVE(init_signal_ranks=ranks, n_jobs=1, center=True)
     ajive_model.fit([train_cancer_features, train_density_features])
     return ajive_model
 
@@ -82,7 +82,7 @@ def build_head_model(base_model, ajive_model, active_head, num_class):
         ajive_model=ajive_model,
         num_class=num_class,
         active_head=active_head,
-        hidden_dim=128,
+        hidden_dim=56,
         drop=0.3,
         learning_rate=1e-3,
     )
@@ -151,13 +151,13 @@ def train_and_test_heads(
             dirpath=f"checkpoints/ajive_heads_{task_name}/",
             filename=f"ajive_heads_{task_name}_{head_name}-epoch:{{epoch:02d}}",
             save_top_k=1,
-            monitor=f"val_{head_name}_loss",
+            monitor="val_loss",
             mode="min",
-            save_last=True,
+            save_last=False,
         )
         lr_monitor = LearningRateMonitor(logging_interval="step")
         early_stopping = EarlyStopping(
-            monitor=f"val_{head_name}_loss",
+            monitor="val_loss",
             patience=4,
             mode="min",
         )
@@ -185,7 +185,7 @@ def train_and_test_heads(
                 ajive_model=ajive_model,
                 num_class=base_model.hparams.num_class,
                 learning_rate=1e-3,
-                hidden_dim=128,
+                hidden_dim=56,
                 drop=0.3,
                 active_head=head_name,
             )
@@ -231,8 +231,7 @@ def main():
         task=task,
         use_train_sampler=True,
     )
-    print(os.getcwd())
-    print(os.listdir(os.getcwd()))
+
     model_cancer = Single_view_model.load_from_checkpoint(
         "artifacts/model-ln6ychcp:v0/model.ckpt"
     )

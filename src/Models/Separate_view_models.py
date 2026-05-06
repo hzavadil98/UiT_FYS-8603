@@ -385,7 +385,7 @@ class Single_view_AJIVE_heads(Breast_backbone):
         ajive_model,
         num_class,
         learning_rate=1e-3,
-        hidden_dim: int = 128,
+        hidden_dim: int = 56,
         drop: float = 0.3,
         active_head: str = "both",
         view_index: int | None = None,
@@ -452,7 +452,9 @@ class Single_view_AJIVE_heads(Breast_backbone):
             }
         )
 
-        self.confmat_titles = [f"AJIVE {self.active_head} head confusion matrix"]
+        self.confmat_titles = [
+            f"AJIVE {'cancer' if self.view_index == 0 else 'density'} head confusion matrix"
+        ]
 
     def _get_view_specific_block(self):
         view_specific = getattr(self.ajive_model, "view_specific_", None)
@@ -485,7 +487,6 @@ class Single_view_AJIVE_heads(Breast_backbone):
         if head_name not in self.head_names:
             raise ValueError(f"head_name must be one of {self.head_names}")
         self.active_head = head_name
-        self.confmat_titles = [f"AJIVE {self.active_head} head confusion matrix"]
 
     def train(self, mode: bool = True):
         super().train(mode)
@@ -545,25 +546,25 @@ class Single_view_AJIVE_heads(Breast_backbone):
     def training_step(self, batch, batch_idx):
         x, y = self._select_targets(batch)
         y_hat = self(x, head_name=self.active_head)
-        metrics = self.compute_metrics(y_hat, y, prefix=f"train_{self.active_head}_")
+        metrics = self.compute_metrics(y_hat, y, prefix="train_")
         self.log_dict(metrics, sync_dist=True)
-        return metrics[f"train_{self.active_head}_loss"]
+        return metrics["train_loss"]
 
     def validation_step(self, batch, batch_idx):
         x, y = self._select_targets(batch)
         y_hat = self(x, head_name=self.active_head)
-        metrics = self.compute_metrics(y_hat, y, prefix=f"val_{self.active_head}_")
+        metrics = self.compute_metrics(y_hat, y, prefix="val_")
         self.log_dict(metrics, sync_dist=True)
-        return metrics[f"val_{self.active_head}_loss"]
+        return metrics["val_loss"]
 
     def test_step(self, batch, batch_idx):
         x, y = self._select_targets(batch)
         y_hat = self(x, head_name=self.active_head)
-        metrics = self.compute_metrics(y_hat, y, prefix=f"test_{self.active_head}_")
+        metrics = self.compute_metrics(y_hat, y, prefix="test_")
         self.log_dict(metrics, sync_dist=True)
 
         self.confusion_matrix[0].update(th.argmax(y_hat, dim=1), y)
-        return metrics[f"test_{self.active_head}_loss"]
+        return metrics["test_loss"]
 
     def generate_grad_cam(self, x, target_class=None, head_name: str | None = None):
         """
