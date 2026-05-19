@@ -10,8 +10,8 @@ echo "Running the python script..."
 
 #python3 train_2v1b.py
 
-#python3 train_1vf.py
+python3 -u train_1vf.py
 
-python3 -u train_heads.py
+#python3 -u train_heads.py
 
 echo "Script execution completed."

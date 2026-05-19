@@ -6,11 +6,11 @@ import pytorch_lightning as pl
 import seaborn as sns
 import torch as th
 import torch.nn as nn
-import wandb
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.utilities import rank_zero_only
 from torchmetrics.classification import Accuracy, F1Score, MulticlassConfusionMatrix
 
+import wandb
 from Mirai_Risk_Prediction_Model.asymmetry_model.mirai_localized_dif_head import (
     extract_mirai_backbone,
 )
@@ -41,25 +41,40 @@ class Breast_backbone(pl.LightningModule):
         )
         self.confmat_titles = "Confusion Matrix"
 
-        self.f1 = F1Score(num_classes=num_class, average="macro", task="multiclass")
-        self.accuracy = Accuracy(
+        # Per-split metrics
+        self.train_f1 = F1Score(
+            num_classes=num_class, average="macro", task="multiclass"
+        )
+        self.val_f1 = F1Score(num_classes=num_class, average="macro", task="multiclass")
+        self.test_f1 = F1Score(
+            num_classes=num_class, average="macro", task="multiclass"
+        )
+
+        self.train_acc = Accuracy(
+            num_classes=num_class, average="macro", task="multiclass"
+        )
+        self.val_acc = Accuracy(
+            num_classes=num_class, average="macro", task="multiclass"
+        )
+        self.test_acc = Accuracy(
             num_classes=num_class, average="macro", task="multiclass"
         )
 
         self.check_path = "checkpoints/best_model.ckpt"
 
     def compute_metrics(self, y_hat, y, prefix: str = None, postfix: str = None):
+        """
+        Compute loss and predictions only. Do NOT update torchmetrics here.
+        Returns a dict with keys optionally prefixed/postfixed to match callers.
+        """
         y_pred = th.argmax(y_hat, dim=1)
-        metrics = {
-            "loss": self.loss(y_hat, y),
-            "f1": self.f1(y_pred, y),
-            "acc": self.accuracy(y_pred, y),
-        }
-        if prefix is not None:
-            metrics = {prefix + key: value for key, value in metrics.items()}
-        if postfix is not None:
-            metrics = {key + postfix: value for key, value in metrics.items()}
-        return metrics
+        loss = self.loss(y_hat, y)
+        base = {"loss": loss, "y_pred": y_pred}
+        out = {}
+        for k, v in base.items():
+            key = f"{prefix or ''}{k}{postfix or ''}"
+            out[key] = v
+        return out
 
     def configure_optimizers(self):
         optimizer = th.optim.Adam(self.parameters(), lr=self.learning_rate)
@@ -149,26 +164,118 @@ class Mirai_two_view_model(Breast_backbone):
         x, y1, y2 = batch
         y = y1 if self.task == 1 else y2
         y_hat = self(x)
-        metrics = self.compute_metrics(y_hat, y, prefix="train_")
-        self.log_dict(metrics, sync_dist=True)
-        return metrics["train_loss"]
+        loss = self.loss(y_hat, y)
+        y_pred = th.argmax(y_hat, dim=1)
+
+        # Update train metrics
+        self.train_f1.update(y_pred, y)
+        self.train_acc.update(y_pred, y)
+
+        # Log train metrics
+        self.log(
+            "train_f1",
+            self.train_f1,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            sync_dist=True,
+        )
+        self.log(
+            "train_acc",
+            self.train_acc,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            sync_dist=True,
+        )
+        self.log(
+            "train_loss",
+            loss,
+            on_step=True,
+            on_epoch=True,
+            prog_bar=True,
+            sync_dist=True,
+        )
+
+        return loss
 
     def validation_step(self, batch, batch_idx):
         x, y1, y2 = batch
         y = y1 if self.task == 1 else y2
         y_hat = self(x)
-        metrics = self.compute_metrics(y_hat, y, prefix="val_")
-        self.log_dict(metrics, sync_dist=True)
-        return metrics["val_loss"]
+        loss = self.loss(y_hat, y)
+        y_pred = th.argmax(y_hat, dim=1)
+
+        # Update val metrics
+        self.val_f1.update(y_pred, y)
+        self.val_acc.update(y_pred, y)
+
+        self.log(
+            "val_f1",
+            self.val_f1,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            sync_dist=True,
+        )
+        self.log(
+            "val_acc",
+            self.val_acc,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            sync_dist=True,
+        )
+        self.log(
+            "val_loss",
+            loss,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            sync_dist=True,
+        )
+
+        return loss
 
     def test_step(self, batch, batch_idx):
         x, y1, y2 = batch
         y = y1 if self.task == 1 else y2
         y_hat = self(x)
-        metrics = self.compute_metrics(y_hat, y, prefix="test_")
-        self.log_dict(metrics, sync_dist=True)
-        self.confusion_matrix[0].update(th.argmax(y_hat, dim=1), y)
-        return metrics["test_loss"]
+        loss = self.loss(y_hat, y)
+        y_pred = th.argmax(y_hat, dim=1)
+
+        # Update test metrics
+        self.test_f1.update(y_pred, y)
+        self.test_acc.update(y_pred, y)
+
+        self.confusion_matrix[0].update(y_pred, y)
+
+        self.log(
+            "test_f1",
+            self.test_f1,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            sync_dist=True,
+        )
+        self.log(
+            "test_acc",
+            self.test_acc,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            sync_dist=True,
+        )
+        self.log(
+            "test_loss",
+            loss,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            sync_dist=True,
+        )
+
+        return loss
 
     def get_resnet_outputs(self, batch):
         self.eval()

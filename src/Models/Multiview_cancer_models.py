@@ -28,25 +28,40 @@ class Breast_backbone(pl.LightningModule):
         )
         self.confmat_titles = "Confusion Matrix"
 
-        self.f1 = F1Score(num_classes=num_class, average="macro", task="multiclass")
-        self.accuracy = Accuracy(
+        # per-split metrics
+        self.train_f1 = F1Score(
+            num_classes=num_class, average="macro", task="multiclass"
+        )
+        self.val_f1 = F1Score(num_classes=num_class, average="macro", task="multiclass")
+        self.test_f1 = F1Score(
+            num_classes=num_class, average="macro", task="multiclass"
+        )
+
+        self.train_acc = Accuracy(
+            num_classes=num_class, average="macro", task="multiclass"
+        )
+        self.val_acc = Accuracy(
+            num_classes=num_class, average="macro", task="multiclass"
+        )
+        self.test_acc = Accuracy(
             num_classes=num_class, average="macro", task="multiclass"
         )
 
         self.check_path = "checkpoints/best_model.ckpt"
 
     def compute_metrics(self, y_hat, y, prefix: str = None, postfix: str = None):
+        """
+        Stateless metric helper: compute loss and predicted labels only.
+        Returns a dict with keys optionally prefixed/postfixed to match callers.
+        """
         y_pred = th.argmax(y_hat, dim=1)
-        metrics = {
-            "loss": self.loss(y_hat, y),
-            "f1": self.f1(y_pred, y),
-            "acc": self.accuracy(y_pred, y),
-        }
-        if prefix is not None:
-            metrics = {prefix + key: value for key, value in metrics.items()}
-        if postfix is not None:
-            metrics = {key + postfix: value for key, value in metrics.items()}
-        return metrics
+        loss = self.loss(y_hat, y)
+        base = {"loss": loss, "y_pred": y_pred}
+        out = {}
+        for k, v in base.items():
+            key = f"{prefix or ''}{k}{postfix or ''}"
+            out[key] = v
+        return out
 
     def configure_optimizers(self):
         optimizer = th.optim.Adam(self.parameters(), lr=self.learning_rate)
@@ -192,6 +207,42 @@ class Four_view_two_branch_model(Breast_backbone):
         x, y = batch
         y_left, y_right = self.forward(x)
         loss, metrics = self.compute_branch_metrics(y_left, y_right, y, prefix="train_")
+
+        # compute overall chosen logits and predictions
+        y_max = th.max(y, dim=1).values
+        y_worse_logits = th.maximum(y_left, y_right)
+        y_worse_pred = th.argmax(y_worse_logits, dim=1)
+
+        # update train metrics on the overall prediction
+        self.train_f1.update(y_worse_pred, y_max)
+        self.train_acc.update(y_worse_pred, y_max)
+
+        # log metrics
+        self.log(
+            "train_f1",
+            self.train_f1,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            sync_dist=True,
+        )
+        self.log(
+            "train_acc",
+            self.train_acc,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            sync_dist=True,
+        )
+        self.log(
+            "train_loss",
+            loss,
+            on_step=True,
+            on_epoch=True,
+            prog_bar=True,
+            sync_dist=True,
+        )
+
         self.log_dict(metrics, sync_dist=True)
         return loss
 
@@ -199,8 +250,42 @@ class Four_view_two_branch_model(Breast_backbone):
         x, y = batch
         y_left, y_right = self.forward(x)
         loss, metrics = self.compute_branch_metrics(y_left, y_right, y, prefix="val_")
+
+        # compute overall chosen logits and predictions
+        y_max = th.max(y, dim=1).values
+        y_worse_logits = th.maximum(y_left, y_right)
+        y_worse_pred = th.argmax(y_worse_logits, dim=1)
+
+        # update val metrics
+        self.val_f1.update(y_worse_pred, y_max)
+        self.val_acc.update(y_worse_pred, y_max)
+
+        self.log(
+            "val_f1",
+            self.val_f1,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            sync_dist=True,
+        )
+        self.log(
+            "val_acc",
+            self.val_acc,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            sync_dist=True,
+        )
+        self.log(
+            "val_loss",
+            loss,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            sync_dist=True,
+        )
+
         self.log_dict(metrics, sync_dist=True)
-        self.log("val_loss", loss)
         return loss
 
     def test_step(self, batch, batch_idx):
@@ -213,11 +298,42 @@ class Four_view_two_branch_model(Breast_backbone):
         y_left_pred = th.argmax(y_left, dim=1)
         y_right_pred = th.argmax(y_right, dim=1)
         # keeps the logits of the branch with the higher target value
-        y_worse_pred = th.maximum(y_left, y_right)
+        y_worse_logits = th.maximum(y_left, y_right)
+        y_worse_pred = th.argmax(y_worse_logits, dim=1)
+
+        # update test metrics
+        self.test_f1.update(y_worse_pred, y_max)
+        self.test_acc.update(y_worse_pred, y_max)
 
         self.confusion_matrix[0].update(y_left_pred, y[:, 0])
         self.confusion_matrix[1].update(y_right_pred, y[:, 1])
-        self.confusion_matrix[2].update(y_worse_pred, y_max)
+        self.confusion_matrix[2].update(y_worse_logits, y_max)
+
+        self.log(
+            "test_f1",
+            self.test_f1,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            sync_dist=True,
+        )
+        self.log(
+            "test_acc",
+            self.test_acc,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            sync_dist=True,
+        )
+        self.log(
+            "test_loss",
+            loss,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            sync_dist=True,
+        )
+
         return loss
 
 
@@ -382,26 +498,117 @@ class Two_view_model(Breast_backbone):
         x, y1, y2 = batch
         y = y1 if self.task == 1 else y2
         y_hat = self(x)
-        metrics = self.compute_metrics(y_hat, y, prefix="train_")
-        self.log_dict(metrics, sync_dist=True)
-        return metrics["train_loss"]
+        loss = self.loss(y_hat, y)
+        y_pred = th.argmax(y_hat, dim=1)
+
+        # update train metrics
+        self.train_f1.update(y_pred, y)
+        self.train_acc.update(y_pred, y)
+
+        self.log(
+            "train_f1",
+            self.train_f1,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            sync_dist=True,
+        )
+        self.log(
+            "train_acc",
+            self.train_acc,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            sync_dist=True,
+        )
+        self.log(
+            "train_loss",
+            loss,
+            on_step=True,
+            on_epoch=True,
+            prog_bar=True,
+            sync_dist=True,
+        )
+
+        return loss
 
     def validation_step(self, batch, batch_idx):
         x, y1, y2 = batch
         y = y1 if self.task == 1 else y2
         y_hat = self(x)
-        metrics = self.compute_metrics(y_hat, y, prefix="val_")
-        self.log_dict(metrics, sync_dist=True)
-        return metrics["val_loss"]
+        loss = self.loss(y_hat, y)
+        y_pred = th.argmax(y_hat, dim=1)
+
+        # update val metrics
+        self.val_f1.update(y_pred, y)
+        self.val_acc.update(y_pred, y)
+
+        self.log(
+            "val_f1",
+            self.val_f1,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            sync_dist=True,
+        )
+        self.log(
+            "val_acc",
+            self.val_acc,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            sync_dist=True,
+        )
+        self.log(
+            "val_loss",
+            loss,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            sync_dist=True,
+        )
+
+        return loss
 
     def test_step(self, batch, batch_idx):
         x, y1, y2 = batch
         y = y1 if self.task == 1 else y2
         y_hat = self(x)
-        metrics = self.compute_metrics(y_hat, y, prefix="test_")
-        self.log_dict(metrics, sync_dist=True)
-        self.confusion_matrix[0].update(th.argmax(y_hat, dim=1), y)
-        return metrics["test_loss"]
+        loss = self.loss(y_hat, y)
+        y_pred = th.argmax(y_hat, dim=1)
+
+        # update test metrics
+        self.test_f1.update(y_pred, y)
+        self.test_acc.update(y_pred, y)
+
+        self.confusion_matrix[0].update(y_pred, y)
+
+        self.log(
+            "test_f1",
+            self.test_f1,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            sync_dist=True,
+        )
+        self.log(
+            "test_acc",
+            self.test_acc,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            sync_dist=True,
+        )
+        self.log(
+            "test_loss",
+            loss,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            sync_dist=True,
+        )
+
+        return loss
 
     def get_resnet_outputs(self, batch):
         self.eval()
