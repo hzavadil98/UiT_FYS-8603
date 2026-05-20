@@ -100,7 +100,7 @@ def main():
     early_stopping = EarlyStopping(monitor="val_loss", patience=8, mode="min")
 
     trainer = pl.Trainer(
-        max_epochs=5,
+        max_epochs=100,
         accelerator=accelerator,
         devices=devices,
         logger=wandb_logger,
