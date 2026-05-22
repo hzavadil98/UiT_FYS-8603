@@ -67,7 +67,11 @@ def main():
     # dataloader.train_dataset.plot(0)
 
     model = Single_view_model(
-        num_class=5 if task == 1 else 4, drop=0.4, learning_rate=1e-4, task=task
+        num_class=5 if task == 1 else 4,
+        drop=0.4,
+        weights_file=1,
+        learning_rate=1e-4,
+        task=task,
     )
     # check_dataloader_passes_model(dataloader, model)
     os.environ["WANDB_CODE_DIR"] = "."

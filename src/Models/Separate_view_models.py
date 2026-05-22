@@ -163,7 +163,7 @@ class Single_view_model(Breast_backbone):
         self.log(
             "train_loss",
             loss,
-            on_step=True,
+            on_step=False,
             on_epoch=True,
             prog_bar=True,
             sync_dist=True,
@@ -388,9 +388,11 @@ class Single_view_model(Breast_backbone):
         x = x.clone().detach().requires_grad_(True)
         output = self(x)
 
+        pred_class = output.argmax(dim=1)
+
         # Get target class
         if target_class is None:
-            target_class = output.argmax(dim=1)
+            target_class = pred_class
 
         # Backward pass
         self.zero_grad()
@@ -419,7 +421,7 @@ class Single_view_model(Breast_backbone):
             if cam_max > cam_min:
                 cam[i] = (cam[i] - cam_min) / (cam_max - cam_min)
 
-        return cam.detach().cpu(), target_class
+        return cam.detach().cpu(), pred_class.detach().cpu()
 
 
 class Four_view_single_featurizer(Breast_backbone):
@@ -493,7 +495,7 @@ class Four_view_single_featurizer(Breast_backbone):
         self.log(
             "train_loss",
             loss,
-            on_step=True,
+            on_step=False,
             on_epoch=True,
             prog_bar=True,
             sync_dist=True,
@@ -782,7 +784,7 @@ class Single_view_AJIVE_heads(Breast_backbone):
         self.log(
             "train_loss",
             loss,
-            on_step=True,
+            on_step=False,
             on_epoch=True,
             prog_bar=True,
             sync_dist=True,
