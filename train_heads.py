@@ -236,7 +236,7 @@ def main():
         "artifacts/model-5opqyl7e:v0/model.ckpt"
     )
     model_density = Single_view_model.load_from_checkpoint(
-        "artifacts/model-vjzmam1e:v0/model.ckpt"
+        "artifacts/model-kb9kz79s:v0/model.ckpt"
     )
 
     feature_dir = Path("saved_features/One_View_Canc_vs_Dens")
