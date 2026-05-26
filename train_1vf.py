@@ -96,12 +96,12 @@ def main():
         dirpath="checkpoints/",
         filename=checkpoint_filename,
         save_top_k=1,
-        monitor="val_loss",
-        mode="min",
-        save_last=True,
+        monitor="val_f1",
+        mode="max",
+        save_last=False,
     )
     lr_monitor = LearningRateMonitor(logging_interval="step")
-    early_stopping = EarlyStopping(monitor="val_loss", patience=8, mode="min")
+    early_stopping = EarlyStopping(monitor="val_f1", patience=8, mode="max")
 
     trainer = pl.Trainer(
         max_epochs=100,
