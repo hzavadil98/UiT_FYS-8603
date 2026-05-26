@@ -233,7 +233,7 @@ def main():
     )
 
     model_cancer = Single_view_model.load_from_checkpoint(
-        "artifacts/model-ln6ychcp:v0/model.ckpt"
+        "artifacts/model-5opqyl7e:v0/model.ckpt"
     )
     model_density = Single_view_model.load_from_checkpoint(
         "artifacts/model-vjzmam1e:v0/model.ckpt"
