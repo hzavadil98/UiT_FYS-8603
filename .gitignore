@@ -10,6 +10,8 @@ artifacts/
 Report_files/
 Mirai_Risk_Prediction_Model/
 
+VinDr_AJIVE
+
 sync.sh
 # pl model checkpoints
 checkpoints/
@@ -35,3 +37,7 @@ profiler_logs/
 saved_features/
 
 DIVAS/toyDataThreeWay.mat
+
+__marimo__
+layouts
+.agents

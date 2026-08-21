@@ -110,12 +110,12 @@ class View_Cancer_dataset(Dataset):
             "DENSITY D": 3,
         }
         # maps the labels to integers
-        self.annotation.loc[:, "breast_birads"] = self.annotation["breast_birads"].map(
-            self.label_map
+        self.annotation["breast_birads"] = (
+            self.annotation["breast_birads"].map(self.label_map).astype(int)
         )
-        self.annotation.loc[:, "breast_density"] = self.annotation[
-            "breast_density"
-        ].map(self.density_map)
+        self.annotation["breast_density"] = (
+            self.annotation["breast_density"].map(self.density_map).astype(int)
+        )
         # gets image labels
         self.labels = self.annotation["breast_birads"].values
         self.densities = self.annotation["breast_density"].values
