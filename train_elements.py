@@ -45,7 +45,7 @@ def main():
     allowed_shapes = ["square", "circle", "triangle", "plus"]
     allowed_colors = ["red", "green", "blue"]
     allowed_textures = ["solid", "spots_polka", "stripes_diagonal"]
-    element_n = 5
+    element_n = 9
 
     dataloader = Single_Element_Dataloader(
         batch_size=batch_size,
@@ -55,8 +55,8 @@ def main():
         n_test=1000,
         img_size=224,
         element_n=element_n,
-        element_size=48,
-        element_size_delta=16,
+        element_size=24,
+        element_size_delta=8,
         allowed_shapes=allowed_shapes,
         allowed_colors=allowed_colors,
         allowed_textures=allowed_textures,
@@ -96,8 +96,8 @@ def main():
             "n_test": 1000,
             "img_size": 224,
             "element_n": element_n,
-            "element_size": 48,
-            "element_size_delta": 16,
+            "element_size": 24,
+            "element_size_delta": 8,
             "allowed_shapes": allowed_shapes,
             "allowed_colors": allowed_colors,
             "allowed_textures": allowed_textures,
