@@ -40,7 +40,7 @@ def main():
     )
 
     batch_size = 32
-    task = 2  # 1: majority shape, 2: majority texture
+    task = 1  # 1: majority shape, 2: majority texture
 
     allowed_shapes = ["square", "circle", "triangle", "plus"]
     allowed_colors = ["red", "green", "blue"]
