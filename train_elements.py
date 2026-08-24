@@ -40,7 +40,7 @@ def main():
     )
 
     batch_size = 32
-    task = 1  # 1: shape (4 classes), 2: texture (3 classes)
+    task = 2  # 1: shape (4 classes), 2: texture (3 classes)
 
     dataloader = Single_Element_Dataloader(
         batch_size=batch_size,
