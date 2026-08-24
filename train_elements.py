@@ -15,10 +15,10 @@ from src import Single_Element_Dataloader, Single_view_model
 
 
 def main():
-    """Train a single-view model on the synthetic single-element dataset.
+    """Train a single-view model on the synthetic multi-element dataset.
 
-    task=1 -> shape classification (4 classes)
-    task=2 -> texture classification (3 classes)
+    task=1 -> majority-shape classification
+    task=2 -> majority-texture classification
     """
     if torch.backends.mps.is_available():
         accelerator = "mps"
@@ -40,7 +40,12 @@ def main():
     )
 
     batch_size = 32
-    task = 2  # 1: shape (4 classes), 2: texture (3 classes)
+    task = 1  # 1: majority shape, 2: majority texture
+
+    allowed_shapes = ["square", "circle", "triangle", "plus"]
+    allowed_colors = ["red", "green", "blue"]
+    allowed_textures = ["solid", "spots_polka", "stripes_diagonal"]
+    element_n = 5
 
     dataloader = Single_Element_Dataloader(
         batch_size=batch_size,
@@ -49,22 +54,25 @@ def main():
         n_val=1000,
         n_test=1000,
         img_size=224,
-        element_n=1,
-        element_size=96,
-        element_size_delta=24,
-        allowed_shapes=["square", "circle", "triangle", "plus"],
-        allowed_colors=["red", "green", "blue"],
-        allowed_textures=["solid", "spots_polka", "stripes_diagonal"],
+        element_n=element_n,
+        element_size=48,
+        element_size_delta=16,
+        allowed_shapes=allowed_shapes,
+        allowed_colors=allowed_colors,
+        allowed_textures=allowed_textures,
         element_seed=42,
         loc_seed=123,
+        max_resample_attempt_factor=50,
         train_transform=train_transform,
         transform=None,
         use_train_sampler=True,
         sampler_target="shape" if task == 1 else "texture",
     )
 
+    num_classes = len(allowed_shapes) if task == 1 else len(allowed_textures)
+
     model = Single_view_model(
-        num_class=4 if task == 1 else 3,
+        num_class=num_classes,
         drop=0.4,
         weights_file=1,
         learning_rate=1e-4,
@@ -82,16 +90,17 @@ def main():
         {
             "batch_size": batch_size,
             "task": task,
+            "task_definition": "majority_shape" if task == 1 else "majority_texture",
             "n_train": 5000,
             "n_val": 1000,
             "n_test": 1000,
             "img_size": 224,
-            "element_n": 1,
-            "element_size": 96,
-            "element_size_delta": 24,
-            "allowed_shapes": ["square", "circle", "triangle", "plus"],
-            "allowed_colors": ["red", "green", "blue"],
-            "allowed_textures": ["solid", "spots_polka", "stripes_diagonal"],
+            "element_n": element_n,
+            "element_size": 48,
+            "element_size_delta": 16,
+            "allowed_shapes": allowed_shapes,
+            "allowed_colors": allowed_colors,
+            "allowed_textures": allowed_textures,
         }
     )
 

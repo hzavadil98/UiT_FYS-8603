@@ -1,4 +1,3 @@
-import itertools
 from typing import Dict, List, Optional
 
 import numpy as np
@@ -10,11 +9,13 @@ from elements.classes import ElementDataset
 
 
 class Single_Element_dataset(Dataset):
-    """Wrapper around ElementDataset for single-object images.
+    """Wrapper around ElementDataset for multi-object images.
 
     Returns one image and two labels:
-    - shape label in [0, 3]
-    - texture label in [0, 2]
+    - task1: majority shape label
+    - task2: majority texture label
+
+    Samples where either task is a tie are rejected and re-sampled.
     """
 
     def __init__(
@@ -26,12 +27,13 @@ class Single_Element_dataset(Dataset):
         img_size: int = 224,
         element_size: int = 96,
         element_size_delta: int = 24,
-        element_n: int = 1,
+        element_n: int = 5,
         allowed_shapes: Optional[List[str]] = None,
         allowed_colors: Optional[List[str]] = None,
         allowed_textures: Optional[List[str]] = None,
         element_seed: int = 42,
         loc_seed: int = 123,
+        max_resample_attempt_factor: int = 50,
         transform=None,
     ):
         super().__init__()
@@ -50,13 +52,14 @@ class Single_Element_dataset(Dataset):
             "spots_polka",
             "stripes_diagonal",
         ]
+        self.element_n = element_n
+        self.max_resample_attempt_factor = max_resample_attempt_factor
 
-        # 12 classes: all shape x texture combinations with wildcard color.
+        # Keep class configs minimal: labels are computed from majority statistics,
+        # not from this class list.
         self.class_configs = [
-            {"shape": shape, "color": None, "texture": texture}
-            for shape, texture in itertools.product(
-                self.allowed_shapes, self.allowed_textures
-            )
+            {"shape": shape, "color": None, "texture": None}
+            for shape in self.allowed_shapes
         ]
 
         self.shape_to_idx = {shape: i for i, shape in enumerate(self.allowed_shapes)}
@@ -77,6 +80,7 @@ class Single_Element_dataset(Dataset):
             "test": 20_000,
         }
         split_offset = split_offsets[split]
+        split_size = split_sizes[split]
 
         allowed = {
             "shapes": self.allowed_shapes,
@@ -87,7 +91,7 @@ class Single_Element_dataset(Dataset):
         self.dataset = ElementDataset(
             allowed=allowed,
             class_configs=self.class_configs,
-            n=split_sizes[split],
+            n=split_size,
             img_size=img_size,
             element_n=element_n,
             element_size=element_size,
@@ -96,42 +100,101 @@ class Single_Element_dataset(Dataset):
             loc_seed=loc_seed + split_offset,
         )
 
-        # Precompute labels from element sampling seeds. This avoids generating images
-        # when computing class balance for samplers.
-        self.shape_labels, self.texture_labels, self.combo_labels = (
-            self._precompute_labels()
+        (
+            accepted_element_seeds,
+            accepted_loc_seeds,
+            self.shape_labels,
+            self.texture_labels,
+        ) = self._sample_non_tie_seed_bank(
+            n_samples=split_size,
+            base_element_seed=element_seed + split_offset,
+            base_loc_seed=loc_seed + split_offset,
         )
 
-    def _precompute_labels(self):
-        shape_labels = np.zeros(len(self.dataset), dtype=np.int64)
-        texture_labels = np.zeros(len(self.dataset), dtype=np.int64)
-        combo_labels = np.zeros(len(self.dataset), dtype=np.int64)
+        self.dataset.element_seeds = accepted_element_seeds
+        self.dataset.loc_seeds = accepted_loc_seeds
+        self.combo_labels = (
+            self.shape_labels * len(self.allowed_textures) + self.texture_labels
+        )
 
-        for idx in range(len(self.dataset)):
-            element_config = ElementDataset.choose_element_configs(
-                n=1,
+    @staticmethod
+    def _majority_label_or_none(indices: List[int], n_classes: int) -> Optional[int]:
+        counts = np.bincount(indices, minlength=n_classes)
+        max_count = counts.max()
+        winners = np.flatnonzero(counts == max_count)
+        if len(winners) != 1:
+            return None
+        return int(winners[0])
+
+    def _sample_non_tie_seed_bank(
+        self,
+        n_samples: int,
+        base_element_seed: int,
+        base_loc_seed: int,
+    ):
+        element_rng = np.random.default_rng(base_element_seed)
+        loc_rng = np.random.default_rng(base_loc_seed)
+
+        accepted_element_seeds = []
+        accepted_loc_seeds = []
+        shape_labels = []
+        texture_labels = []
+
+        max_attempts = n_samples * self.max_resample_attempt_factor
+        attempts = 0
+
+        while len(accepted_element_seeds) < n_samples and attempts < max_attempts:
+            attempts += 1
+
+            candidate_element_seed = int(element_rng.integers(0, 1_000_000))
+            candidate_loc_seed = int(loc_rng.integers(0, 1_000_000))
+
+            element_configs = ElementDataset.choose_element_configs(
+                n=self.element_n,
                 allowed_sizes=self.dataset.allowed["sizes"],
                 allowed_shapes=self.dataset.allowed["shapes"],
                 allowed_colors=self.dataset.allowed["colors"],
                 allowed_textures=self.dataset.allowed["textures"],
-                seed=int(self.dataset.element_seeds[idx]),
+                seed=candidate_element_seed,
                 allowed_combinations=self.dataset.allowed_combinations,
-            )[0]
+            )
 
-            shape = element_config["shape"]
-            texture = element_config["texture"]
+            shape_indices = [self.shape_to_idx[cfg["shape"]] for cfg in element_configs]
+            texture_indices = [
+                self.texture_to_idx[cfg["texture"]] for cfg in element_configs
+            ]
 
-            shape_idx = self.shape_to_idx[shape]
-            texture_idx = self.texture_to_idx[texture]
+            shape_majority = self._majority_label_or_none(
+                shape_indices, len(self.allowed_shapes)
+            )
+            texture_majority = self._majority_label_or_none(
+                texture_indices, len(self.allowed_textures)
+            )
 
-            shape_labels[idx] = shape_idx
-            texture_labels[idx] = texture_idx
-            combo_labels[idx] = shape_idx * len(self.allowed_textures) + texture_idx
+            if shape_majority is None or texture_majority is None:
+                continue
 
-        return shape_labels, texture_labels, combo_labels
+            accepted_element_seeds.append(candidate_element_seed)
+            accepted_loc_seeds.append(candidate_loc_seed)
+            shape_labels.append(shape_majority)
+            texture_labels.append(texture_majority)
+
+        if len(accepted_element_seeds) < n_samples:
+            raise RuntimeError(
+                "Could not sample enough non-tie images. "
+                "Increase max_resample_attempt_factor, reduce element_n, "
+                "or reduce the number of classes."
+            )
+
+        return (
+            np.array(accepted_element_seeds, dtype=np.int64),
+            np.array(accepted_loc_seeds, dtype=np.int64),
+            np.array(shape_labels, dtype=np.int64),
+            np.array(texture_labels, dtype=np.int64),
+        )
 
     def __len__(self):
-        return len(self.dataset)
+        return len(self.shape_labels)
 
     def __getitem__(self, idx):
         image, _class_oh = self.dataset[idx]
@@ -156,12 +219,13 @@ class Single_Element_Dataloader(pl.LightningDataModule):
         img_size: int = 224,
         element_size: int = 96,
         element_size_delta: int = 24,
-        element_n: int = 1,
+        element_n: int = 5,
         allowed_shapes: Optional[List[str]] = None,
         allowed_colors: Optional[List[str]] = None,
         allowed_textures: Optional[List[str]] = None,
         element_seed: int = 42,
         loc_seed: int = 123,
+        max_resample_attempt_factor: int = 50,
         train_transform=None,
         transform=None,
         use_train_sampler: bool = True,
@@ -169,8 +233,8 @@ class Single_Element_Dataloader(pl.LightningDataModule):
     ):
         super().__init__()
 
-        assert sampler_target in ["shape", "texture", "combo"], (
-            'sampler_target must be one of "shape", "texture", "combo"'
+        assert sampler_target in ["shape", "texture"], (
+            'sampler_target must be one of "shape" or "texture"'
         )
 
         self.batch_size = batch_size
@@ -191,6 +255,7 @@ class Single_Element_Dataloader(pl.LightningDataModule):
             "allowed_textures": allowed_textures,
             "element_seed": element_seed,
             "loc_seed": loc_seed,
+            "max_resample_attempt_factor": max_resample_attempt_factor,
         }
 
         self.train_dataset = Single_Element_dataset(
@@ -216,9 +281,7 @@ class Single_Element_Dataloader(pl.LightningDataModule):
     def _get_train_targets(self, dataset: Single_Element_dataset) -> np.ndarray:
         if self.sampler_target == "shape":
             return dataset.shape_labels
-        if self.sampler_target == "texture":
-            return dataset.texture_labels
-        return dataset.combo_labels
+        return dataset.texture_labels
 
     def train_dataloader(self):
         return DataLoader(
