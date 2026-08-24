@@ -62,6 +62,7 @@ RUN pip install --upgrade pip && pip install uv
 WORKDIR /workspace
 
 COPY pyproject.toml uv.lock .python-version ./
+COPY elements ./elements
 
 # Sync dependencies (using 3.12 now)
 RUN uv sync
