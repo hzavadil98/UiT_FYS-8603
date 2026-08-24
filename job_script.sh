@@ -12,6 +12,8 @@ echo "Running the python script..."
 
 #python3 -u train_1vf.py
 
-python3 -u train_heads.py
+#python3 -u train_heads.py
+
+python3 -u train_elements.py
 
 echo "Script execution completed."
