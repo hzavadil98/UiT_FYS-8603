@@ -1939,6 +1939,11 @@ def _(mo):
     5. **Classification metric** — F1 macro / weighted, Accuracy, or Balanced Accuracy.
        F1 variants use `labels = sim_df[label_col].unique()` so the label universe stays fixed
        as samples are filtered out, giving a fair macro average across thresholds.
+    6. **Split by category** — plot Accuracy separately for each true class of the selected task
+       (BI-RADS for Cancer, Density level for Density) instead of one aggregate curve, to see
+       whether dropping low-similarity images disproportionately affects specific classes. When
+       active, the Classification metric selector is overridden to Accuracy, since F1/Balanced
+       Accuracy aren't well-defined within a single true-class subset.
     """)
     return
 
@@ -2113,10 +2118,21 @@ def _(mo):
         value="F1 macro",
         label="Classification metric",
     )
+    split_by_category_ui = mo.ui.checkbox(label="Split by category", value=False)
     controls_2 = mo.vstack(
-        [mo.hstack([sim_metric_ui, sim_task_ui, sim_pred_ui]), clf_metric_ui]
+        [
+            mo.hstack([sim_metric_ui, sim_task_ui, sim_pred_ui]),
+            mo.hstack([clf_metric_ui, split_by_category_ui]),
+        ]
     )
-    return clf_metric_ui, controls_2, sim_metric_ui, sim_pred_ui, sim_task_ui
+    return (
+        clf_metric_ui,
+        controls_2,
+        sim_metric_ui,
+        sim_pred_ui,
+        sim_task_ui,
+        split_by_category_ui,
+    )
 
 
 @app.cell(hide_code=True)
@@ -2137,6 +2153,7 @@ def _(
     sim_pred_ui,
     sim_target_ui,
     sim_task_ui,
+    split_by_category_ui,
 ):
     _target_suffix = {
         "Predicted (each)": "pred_each",
@@ -2160,67 +2177,144 @@ def _(
         "Accuracy": lambda y, p: accuracy_score(y, p),
         "Balanced Accuracy": lambda y, p: balanced_accuracy_score(y, p),
     }
-    _score_fn = _score_fns[clf_metric_ui.value]
-    _clf_label = clf_metric_ui.value
 
     _vals = sim_df[_sim_col].values
     _thresholds = np.linspace(_vals.min(), _vals.max(), 150)
 
-    _scores, _coverages = [], []
-    for _t in _thresholds:
-        _mask = sim_df[_sim_col] >= _t
-        _sub = sim_df[_mask]
-        if len(_sub) < 2:
-            continue
-        _scores.append(_score_fn(_sub[_label_col], _sub[_pred_col]))
-        _coverages.append(_mask.mean())
-
-    _thresholds = _thresholds[: len(_scores)]
-
-    _fig, _ax1 = plt.subplots(figsize=(10, 5))
-    _ax2 = _ax1.twinx()
-
-    _ax1.plot(_thresholds, _scores, color="steelblue", linewidth=2, label=_clf_label)
-    _ax2.plot(
-        _thresholds,
-        _coverages,
-        color="darkorange",
-        linewidth=2,
-        linestyle="--",
-        label="Coverage",
-    )
-
-    _baseline = _score_fn(sim_df[_label_col], sim_df[_pred_col])
-    _ax1.axhline(
-        _baseline,
-        color="steelblue",
-        linestyle=":",
-        alpha=0.5,
-        label=f"Baseline = {_baseline:.3f}",
-    )
-
-    _ax1.set_xlabel(f"{_sim_col} threshold", fontsize=12)
-    _ax1.set_ylabel(_clf_label, color="steelblue", fontsize=11)
-    _ax2.set_ylabel("Coverage (fraction accepted)", color="darkorange", fontsize=11)
-    _ax1.tick_params(axis="y", labelcolor="steelblue")
-    _ax2.tick_params(axis="y", labelcolor="darkorange")
-
-    _lines1, _labels1 = _ax1.get_legend_handles_labels()
-    _lines2, _labels2 = _ax2.get_legend_handles_labels()
-    _ax1.legend(_lines1 + _lines2, _labels1 + _labels2, loc="center left")
-
     _task_label = "Cancer (BI-RADS)" if _label_col == "y1_label" else "Density"
     _pred_label = sim_model_1.value if _pred_col == "pred_1" else sim_model_2.value
-    _title_line1 = (
-        f"{_clf_label} vs {_sim_col} threshold — {_task_label} | Preds: {_pred_label}"
-    )
-    _title_line2 = (
-        f"target={sim_target_ui.value} | {sim_model_1.value} vs {sim_model_2.value}"
-    )
-    _ax1.set_title(f"{_title_line1}\n{_title_line2}", fontsize=11)
-    _ax1.grid(alpha=0.3)
-    plt.tight_layout()
-    mo.vstack([controls_1, controls_2, _fig])
+
+    if split_by_category_ui.value:
+        _score_fn = _score_fns["Accuracy"]
+        _clf_label = "Accuracy"
+
+        def _class_name(c):
+            return (
+                f"BI-{int(c) + 1}" if _label_col == "y1_label" else f"Density {int(c)}"
+            )
+
+        _colors = plt.cm.tab10.colors
+
+        _fig, (_ax1, _ax2) = plt.subplots(1, 2, figsize=(15, 5.5))
+
+        for _i, _c in enumerate(_all_labels):
+            _color = _colors[_i % len(_colors)]
+            _class_mask = sim_df[_label_col] == _c
+            _n_class = int(_class_mask.sum())
+            _class_scores, _class_coverages, _class_thresholds = [], [], []
+            for _t in _thresholds:
+                _sub_mask = _class_mask & (sim_df[_sim_col] >= _t)
+                _n_sub = int(_sub_mask.sum())
+                if _n_sub < 2:
+                    continue
+                _sub = sim_df[_sub_mask]
+                _class_scores.append(_score_fn(_sub[_label_col], _sub[_pred_col]))
+                _class_coverages.append(_n_sub / _n_class)
+                _class_thresholds.append(_t)
+            _line_label = f"{_class_name(_c)} (n={_n_class})"
+            _ax1.plot(
+                _class_thresholds,
+                _class_scores,
+                linewidth=2,
+                color=_color,
+                label=_line_label,
+            )
+            _ax2.plot(
+                _class_thresholds,
+                _class_coverages,
+                linewidth=2,
+                color=_color,
+                label=_line_label,
+            )
+
+        _ax1.set_xlabel(f"{_sim_col} threshold", fontsize=12)
+        _ax1.set_ylabel(_clf_label, fontsize=11)
+        _ax1.set_title("Accuracy per true class", fontsize=11)
+        _ax1.grid(alpha=0.3)
+        _ax1.legend(fontsize=8, loc="best")
+
+        _ax2.set_xlabel(f"{_sim_col} threshold", fontsize=12)
+        _ax2.set_ylabel("Coverage within class", fontsize=10)
+        _ax2.set_title(
+            "Coverage per true class (fraction of that class's samples retained)",
+            fontsize=10,
+        )
+        _ax2.grid(alpha=0.3)
+        _ax2.legend(fontsize=8, loc="best")
+
+        _fig.suptitle(
+            f"Accuracy vs {_sim_col} threshold, split by true class — {_task_label} | "
+            f"Preds: {_pred_label}\ntarget={sim_target_ui.value} | "
+            f"{sim_model_1.value} vs {sim_model_2.value}",
+            fontsize=11,
+        )
+        plt.tight_layout()
+
+        _note = mo.md(
+            '_Metric fixed to **Accuracy** while "Split by category" is active — F1/Balanced '
+            "Accuracy aren't well-defined within a single true-class subset (no cross-class "
+            "negatives to compute precision/specificity against)._"
+        )
+        _out = mo.vstack([controls_1, controls_2, _note, _fig])
+    else:
+        _score_fn = _score_fns[clf_metric_ui.value]
+        _clf_label = clf_metric_ui.value
+
+        _scores, _coverages = [], []
+        for _t in _thresholds:
+            _mask = sim_df[_sim_col] >= _t
+            _sub = sim_df[_mask]
+            if len(_sub) < 2:
+                continue
+            _scores.append(_score_fn(_sub[_label_col], _sub[_pred_col]))
+            _coverages.append(_mask.mean())
+        _thresholds_agg = _thresholds[: len(_scores)]
+
+        _fig, _ax1 = plt.subplots(figsize=(10, 5))
+        _ax2 = _ax1.twinx()
+
+        _ax1.plot(
+            _thresholds_agg, _scores, color="steelblue", linewidth=2, label=_clf_label
+        )
+        _ax2.plot(
+            _thresholds_agg,
+            _coverages,
+            color="darkorange",
+            linewidth=2,
+            linestyle="--",
+            label="Coverage",
+        )
+
+        _baseline = _score_fn(sim_df[_label_col], sim_df[_pred_col])
+        _ax1.axhline(
+            _baseline,
+            color="steelblue",
+            linestyle=":",
+            alpha=0.5,
+            label=f"Baseline = {_baseline:.3f}",
+        )
+
+        _ax1.set_xlabel(f"{_sim_col} threshold", fontsize=12)
+        _ax1.set_ylabel(_clf_label, color="steelblue", fontsize=11)
+        _ax2.set_ylabel("Coverage (fraction accepted)", color="darkorange", fontsize=11)
+        _ax1.tick_params(axis="y", labelcolor="steelblue")
+        _ax2.tick_params(axis="y", labelcolor="darkorange")
+
+        _lines1, _labels1 = _ax1.get_legend_handles_labels()
+        _lines2, _labels2 = _ax2.get_legend_handles_labels()
+        _ax1.legend(_lines1 + _lines2, _labels1 + _labels2, loc="center left")
+
+        _title_line1 = f"{_clf_label} vs {_sim_col} threshold — {_task_label} | Preds: {_pred_label}"
+        _title_line2 = (
+            f"target={sim_target_ui.value} | {sim_model_1.value} vs {sim_model_2.value}"
+        )
+        _ax1.set_title(f"{_title_line1}\n{_title_line2}", fontsize=11)
+        _ax1.grid(alpha=0.3)
+        plt.tight_layout()
+
+        _out = mo.vstack([controls_1, controls_2, _fig])
+
+    _out
     return
 
 

@@ -1,3 +1,75 @@
+# Project context
+
+This is a research project applying **AJIVE** (Angle-based Joint and Individual Variation Explained) to mammography deep learning. Two ResNet classifiers trained on the **VinDR** dataset (cancer BI-RADS and breast density) are decomposed with AJIVE into shared (joint) and task-specific (individual) feature subspaces. `Single_view_AJIVE_heads` then classifies from each subspace separately, and Grad-CAM is used to study what each component attends to.
+
+## File map
+
+| File / dir | Purpose | Status |
+|---|---|---|
+| `test_vin.py` | Main marimo notebook — VinDR AJIVE analysis, Grad-CAM, localization | **Primary** |
+| `train_1vf.py` | Train single-view ResNet on VinDR (CC or MLO) | Active |
+| `train_heads.py` | Train AJIVE classification heads | Active |
+| `AJIVE_cancer+density.ipynb` | AJIVE: cancer vs density, single view | Reference |
+| `AJIVE_CC+MLO_cancer.ipynb` | AJIVE: CC vs MLO views, cancer task | Reference |
+| `vinDR_annot.ipynb`, `vinDR_gradCam.ipynb` | Earlier VinDR annotation and saliency analysis | Reference |
+| `Elements_AJIVE.ipynb`, `test_elements.py` | Synthetic Elements dataset validation of AJIVE | Secondary |
+| `train_elements.py` | Train shape/texture classifiers on Elements | Secondary |
+| `synthetic_data.ipynb`, `train_synt.py` | Earlier custom synthetic (blobs+waves, `Synthetic_2v_Dataloader`) | **Abandoned** |
+| `src/` | All PyTorch Lightning models and dataloaders |  |
+| `python_packages/` | AJIVE (`jive`), PCA (`ya_pca`), mvdr — always add to `sys.path` first |  |
+
+## src module
+
+```python
+from src import (
+    View_Cancer_Dataloader,       # VinDR, single view (CC or MLO); returns (img, cancer_label, density_label)
+    Breast_Cancer_Dataloader,     # VinDR, breast level
+    Patient_Cancer_Dataloader,    # VinDR, patient level
+    Single_view_model,            # ResNet18; .task=1/2; .generate_grad_cam(x, target_class) → (cam, pred)
+    Single_view_AJIVE_heads,      # wraps Single_view_model; heads: joint/individual/both
+    Two_view_model,               # CC+MLO two-branch model
+    Four_view_two_branch_model,   # bilateral four-view
+    Single_Element_Dataloader,    # Elements synthetic; returns (img, shape_label, texture_label)
+    Synthetic_2v_Dataloader,      # abandoned old synthetic
+)
+```
+
+`View_Cancer_Dataloader` normalises images (mean≈108.3, std≈69.6); denorm is needed when displaying with matplotlib. `Single_Element_Dataloader` images are `[0, 1]` — no denorm needed.
+
+## Checkpoint loading — two patterns
+
+**VinDR AJIVE heads** — Lightning `.ckpt`, restored with `load_from_checkpoint` (ajive_model stored in hyperparameters):
+```python
+ckpt = torch.load(path, weights_only=False)
+hp = ckpt["hyper_parameters"]
+model = Single_view_AJIVE_heads.load_from_checkpoint(path, model=backbone, ajive_model=hp["ajive_model"], ...)
+```
+
+**Elements AJIVE heads** — plain `.pt` dict; AJIVE must be re-fitted from cached features first:
+```python
+aj = AJIVE(init_signal_ranks=(14, 14), n_jobs=4, center=True)
+aj.fit([cache["shape_features"], cache["texture_features"]])  # cache at saved_features/Elements_AJIVE/all_data_train.pt
+checkpoint = torch.load(path, weights_only=False)
+model = Single_view_AJIVE_heads(model=base, ajive_model=aj, num_class=n,
+    active_head=checkpoint["active_head"], hidden_dim=56, drop=0.3, learning_rate=1e-3)
+model.load_state_dict(checkpoint["state_dict"])
+```
+
+## Key artifacts
+
+| Checkpoint | Model |
+|---|---|
+| `artifacts/model-5opqyl7e:v0/model.ckpt` | Cancer `Single_view_model` (VinDR) |
+| `artifacts/model-kb9kz79s:v0/model.ckpt` | Density `Single_view_model` (VinDR) |
+| `artifacts/model-x541jdxj:v0/model.ckpt` | Cancer `Single_view_AJIVE_heads` (VinDR, Lightning) |
+| `artifacts/model-ngta50dn:v0/model.ckpt` | Density `Single_view_AJIVE_heads` (VinDR, Lightning) |
+| `artifacts/model-908ij4rg:v0/model.ckpt` | Shape `Single_view_model` (Elements) |
+| `artifacts/model-qtzv9eop:v0/model.ckpt` | Texture `Single_view_model` (Elements) |
+| `artifacts/shape_all_heads.pt` | Shape AJIVE heads (Elements, plain `.pt`) |
+| `artifacts/texture_all_heads.pt` | Texture AJIVE heads (Elements, plain `.pt`) |
+
+---
+
 # Marimo notebook assistant
 
 I am a specialized AI assistant designed to help create data science notebooks using marimo. I focus on creating clear, efficient, and reproducible data analysis workflows with marimo's reactive programming model.
@@ -179,25 +251,6 @@ def _():
 ```
 </example>
 
-<example title="Data explorer">
-```
-
-@app.cell
-def _():
-    import marimo as mo
-    import polars as pl
-    from vega_datasets import data
-    return
-
-@app.cell
-def _():
-    cars_df = pl.DataFrame(data.cars())
-    mo.ui.data_explorer(cars_df)
-    return
-
-```
-</example>
-
 <example title="Multiple UI elements">
 ```
 
@@ -269,99 +322,3 @@ def _():
 ```
 </example>
 
-<example title="Interactive chart with Altair">
-```
-
-@app.cell
-def _():
-    import marimo as mo
-    import altair as alt
-    import polars as pl
-    return
-
-@app.cell
-def _():
-    # Load dataset
-    weather = pl.read_csv("<https://raw.githubusercontent.com/vega/vega-datasets/refs/heads/main/data/weather.csv>")
-    weather_dates = weather.with_columns(
-        pl.col("date").str.strptime(pl.Date, format="%Y-%m-%d")
-    )
-    _chart = (
-        alt.Chart(weather_dates)
-        .mark_point()
-        .encode(
-            x="date:T",
-            y="temp_max",
-            color="location",
-        )
-    )
-    return
-
-@app.cell
-def _():
-    chart = mo.ui.altair_chart(_chart)
-chart
-    return
-
-@app.cell
-def _():
-    # Display the selection
-    chart.value
-    return
-
-```
-</example>
-
-<example title="Run Button Example">
-```
-
-@app.cell
-def _():
-    import marimo as mo
-    return
-
-@app.cell
-def _():
-    first_button = mo.ui.run_button(label="Option 1")
-    second_button = mo.ui.run_button(label="Option 2")
-    [first_button, second_button]
-    return
-
-@app.cell
-def _():
-    if first_button.value:
-        print("You chose option 1!")
-    elif second_button.value:
-        print("You chose option 2!")
-    else:
-        print("Click a button!")
-    return
-
-```
-</example>
-
-<example title="SQL with duckdb">
-```
-
-@app.cell
-def _():
-    import marimo as mo
-    import polars as pl
-    return
-
-@app.cell
-def _():
-    weather = pl.read_csv('<https://raw.githubusercontent.com/vega/vega-datasets/refs/heads/main/data/weather.csv>')
-    return
-
-@app.cell
-def _():
-    seattle_weather_df = mo.sql(
-        f"""
-        SELECT * FROM weather WHERE location = 'Seattle';
-        """
-    )
-    return
-
-```
-</example>
