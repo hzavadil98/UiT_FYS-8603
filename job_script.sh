@@ -18,7 +18,7 @@ echo "Running the python script..."
 
 #python3 train_1vf.py --task 1 --cancer-label-type binary
 
-python3 train_heads.py --cancer-ckpt artifacts/r3u0rezv:v0/model.ckpt \
+python3 train_heads.py --cancer-ckpt artifacts/model-r3u0rezv:v0/model.ckpt \
     --feature-dir saved_features/One_View_Canc_vs_Dens_binary --cancer-label-type binary
 
 echo "Script execution completed."
