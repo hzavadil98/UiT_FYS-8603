@@ -1,3 +1,4 @@
+import argparse
 import os
 from pathlib import Path
 
@@ -104,6 +105,9 @@ def train_and_test_heads(
     norm_kind,
     batch_size,
     num_workers,
+    ajive_ranks,
+    cancer_label_type,
+    smoke=False,
 ):
     """Train the three AJIVE heads sequentially and log each as a separate wandb run."""
     os.environ["WANDB_CODE_DIR"] = "."
@@ -123,27 +127,31 @@ def train_and_test_heads(
         print("-" * 70)
 
         # Create a separate wandb run for each head
-        wandb_logger = WandbLogger(
-            project=project_name,
-            log_model=True,
-            name=f"AJIVE_heads_{task_name}_{head_name}",
-            settings=wandb.Settings(init_timeout=300),
-        )
+        if smoke:
+            wandb_logger = False
+        else:
+            wandb_logger = WandbLogger(
+                project=project_name,
+                log_model=True,
+                name=f"AJIVE_heads_{task_name}_{head_name}",
+                settings=wandb.Settings(init_timeout=300),
+            )
 
-        wandb_logger.experiment.config.update(
-            {
-                "task_name": task_name,
-                "head_name": head_name,
-                "root_folder": root_folder,
-                "imagefolder_path": imagefolder_path,
-                "image_format": image_format,
-                "norm_kind": norm_kind,
-                "batch_size": batch_size,
-                "num_workers": num_workers,
-                "max_epochs": max_epochs,
-                "ajive_init_signal_ranks": [15, 15],
-            }
-        )
+            wandb_logger.experiment.config.update(
+                {
+                    "task_name": task_name,
+                    "head_name": head_name,
+                    "root_folder": root_folder,
+                    "imagefolder_path": imagefolder_path,
+                    "image_format": image_format,
+                    "norm_kind": norm_kind,
+                    "batch_size": batch_size,
+                    "num_workers": num_workers,
+                    "max_epochs": max_epochs,
+                    "ajive_init_signal_ranks": list(ajive_ranks),
+                    "cancer_label_type": cancer_label_type,
+                }
+            )
 
         model.set_active_head(head_name)
 
@@ -167,10 +175,14 @@ def train_and_test_heads(
             accelerator=accelerator,
             devices=devices,
             logger=wandb_logger,
-            callbacks=[checkpoint_callback, lr_monitor, early_stopping],
+            callbacks=[checkpoint_callback, early_stopping]
+            + ([] if smoke else [lr_monitor]),  # lr monitor needs a logger
             log_every_n_steps=10,
             accumulate_grad_batches=4,
             enable_progress_bar=True,
+            limit_train_batches=3 if smoke else None,
+            limit_val_batches=2 if smoke else None,
+            limit_test_batches=2 if smoke else None,
         )
 
         trainer.fit(model, dataloader)
@@ -193,13 +205,40 @@ def train_and_test_heads(
         trainer.test(model, dataloader)
 
         # Finish the current run before starting the next head
-        wandb.finish()
+        if not smoke:
+            wandb.finish()
 
     return model
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Train AJIVE heads on VinDR")
+    parser.add_argument(
+        "--cancer-ckpt", default="artifacts/model-5opqyl7e:v0/model.ckpt"
+    )
+    parser.add_argument(
+        "--density-ckpt", default="artifacts/model-kb9kz79s:v0/model.ckpt"
+    )
+    parser.add_argument("--feature-dir", default="saved_features/One_View_Canc_vs_Dens")
+    parser.add_argument(
+        "--cancer-label-type",
+        default="birads",
+        choices=["birads", "diagnosis", "binary"],
+    )
+    parser.add_argument("--ranks", type=int, nargs=2, default=[15, 15])
+    parser.add_argument("--project", default="AJIVE_Mammo_heads")
+    parser.add_argument("--max-epochs", type=int, default=12)
+    parser.add_argument(
+        "--smoke",
+        action="store_true",
+        help="1 epoch on a few batches, no wandb - to check the pipeline runs",
+    )
+    return parser.parse_args()
+
+
 def main():
     """Train the cancer and density AJIVE head models and log them to wandb."""
+    args = parse_args()
     runtime = get_runtime_config()
     root_folder = runtime["root_folder"]
     # working_folder = runtime["working_folder"]
@@ -217,29 +256,33 @@ def main():
     norm_kind = "dataset_zscore"
     batch_size = 32
     num_workers = 4
-    task = 1
+    cancer_label_type = args.cancer_label_type
+    # suffix keeps runs/checkpoints of non-default label types apart
+    label_suffix = "" if cancer_label_type == "birads" else f"_{cancer_label_type}"
 
-    dataloader = View_Cancer_Dataloader(
-        root_folder=root_folder,
-        annotation_csv="modified_breast-level_annotations.csv",
-        imagefolder_path=imagefolder_path,
-        image_format=image_format,
-        norm_kind=norm_kind,
-        batch_size=batch_size,
-        num_workers=num_workers,
-        train_transform=train_transform,
-        task=task,
-        use_train_sampler=True,
-    )
+    def build_dataloader(task):
+        # the weighted train sampler balances the classes of the given task
+        return View_Cancer_Dataloader(
+            root_folder=root_folder,
+            annotation_csv="modified_breast-level_annotations.csv",
+            imagefolder_path=imagefolder_path,
+            image_format=image_format,
+            norm_kind=norm_kind,
+            batch_size=batch_size,
+            num_workers=num_workers,
+            train_transform=train_transform,
+            task=task,
+            cancer_label_type=cancer_label_type,
+            use_train_sampler=True,
+        )
 
-    model_cancer = Single_view_model.load_from_checkpoint(
-        "artifacts/model-5opqyl7e:v0/model.ckpt"
-    )
-    model_density = Single_view_model.load_from_checkpoint(
-        "artifacts/model-kb9kz79s:v0/model.ckpt"
-    )
+    cancer_dataloader = build_dataloader(task=1)
+    density_dataloader = build_dataloader(task=2)
 
-    feature_dir = Path("saved_features/One_View_Canc_vs_Dens")
+    model_cancer = Single_view_model.load_from_checkpoint(args.cancer_ckpt)
+    model_density = Single_view_model.load_from_checkpoint(args.density_ckpt)
+
+    feature_dir = Path(args.feature_dir)
     feature_splits = load_saved_ajive_inputs(feature_dir)
 
     train_data = feature_splits["train"]
@@ -247,18 +290,17 @@ def main():
     train_density_features = train_data["dens_features"].cpu().numpy()
 
     print("Fitting shared AJIVE model from saved training features...")
-    ajive_model = fit_ajive_model(train_cancer_features, train_density_features)
+    ajive_model = fit_ajive_model(
+        train_cancer_features, train_density_features, ranks=args.ranks
+    )
     print("AJIVE fitting completed.")
 
     head_names = ["joint", "individual", "both"]
-    max_epochs = 12
-    project_name = "AJIVE_Mammo_heads"
+    max_epochs = 1 if args.smoke else args.max_epochs
+    project_name = args.project
 
-    cancer_ajive_model = train_and_test_heads(
-        task_name="cancer",
-        base_model=model_cancer,
+    common_kwargs = dict(
         ajive_model=ajive_model,
-        dataloader=dataloader,
         accelerator=accelerator,
         devices=devices,
         head_names=head_names,
@@ -270,24 +312,23 @@ def main():
         norm_kind=norm_kind,
         batch_size=batch_size,
         num_workers=num_workers,
+        ajive_ranks=args.ranks,
+        cancer_label_type=cancer_label_type,
+        smoke=args.smoke,
+    )
+
+    cancer_ajive_model = train_and_test_heads(
+        task_name=f"cancer{label_suffix}",
+        base_model=model_cancer,
+        dataloader=cancer_dataloader,
+        **common_kwargs,
     )
 
     density_ajive_model = train_and_test_heads(
-        task_name="density",
+        task_name=f"density{label_suffix}",
         base_model=model_density,
-        ajive_model=ajive_model,
-        dataloader=dataloader,
-        accelerator=accelerator,
-        devices=devices,
-        head_names=head_names,
-        max_epochs=max_epochs,
-        project_name=project_name,
-        root_folder=root_folder,
-        imagefolder_path=imagefolder_path,
-        image_format=image_format,
-        norm_kind=norm_kind,
-        batch_size=batch_size,
-        num_workers=num_workers,
+        dataloader=density_dataloader,
+        **common_kwargs,
     )
 
     print("\nTraining complete.")

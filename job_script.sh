@@ -14,6 +14,8 @@ echo "Running the python script..."
 
 #python3 -u train_heads.py
 
-python3 -u train_elements.py
+#python3 -u train_elements.py
+
+python3 train_1vf.py --task 1 --cancer-label-type binary
 
 echo "Script execution completed."

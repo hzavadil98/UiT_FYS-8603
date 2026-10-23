@@ -1396,9 +1396,16 @@ def _(
     )
 
 
+@app.cell
+def _(mo):
+    get_preview_pos, set_preview_pos = mo.state(10)
+    return get_preview_pos, set_preview_pos
+
+
 @app.cell(hide_code=True)
 def _(
     annot_test,
+    get_preview_pos,
     limit_correct_1,
     limit_correct_2,
     limit_correct_3,
@@ -1413,6 +1420,7 @@ def _(
     preview_model_4,
     results_by_model_pred,
     results_by_model_true,
+    set_preview_pos,
     use_true_class_preview,
 ):
     preview_message = None
@@ -1453,11 +1461,13 @@ def _(
             else np.arange(len(annot_test))
         )
 
+    _max_idx = max(len(preview_indices) - 1, 0)
     preview_pos = mo.ui.slider(
         start=0,
-        stop=max(len(preview_indices) - 1, 0),
+        stop=_max_idx,
         step=1,
-        value=min(10, max(len(preview_indices) - 1, 0)),
+        value=min(get_preview_pos(), _max_idx),
+        on_change=set_preview_pos,
         label="Annotation index",
         full_width=True,
     )
@@ -1944,6 +1954,17 @@ def _(mo):
        whether dropping low-similarity images disproportionately affects specific classes. When
        active, the Classification metric selector is overridden to Accuracy, since F1/Balanced
        Accuracy aren't well-defined within a single true-class subset.
+    7. **Ignore pairs where models disagree** — restrict the similarity-threshold ranking to only
+       the samples where Model A and Model B predicted the same class; samples where they disagree
+       are excluded from the ranking and always stay in the evaluated set, so coverage can never
+       drop below the fraction of samples that disagree.
+
+    On the right, split violin plots show the distribution of the selected similarity metric —
+    one for all samples ("Overall") and one per true class — split into a **Correct** half and an
+    **Incorrect** half (by the currently selected "Predictions from" model). Each half's width is
+    scaled to its share of that group's samples, so a lopsided split (e.g. a class the model
+    rarely gets wrong) shows as a thin sliver; when one side has too few samples for a meaningful
+    distribution (<2), only the other side is drawn and the tick label notes the counts.
     """)
     return
 
@@ -2119,15 +2140,19 @@ def _(mo):
         label="Classification metric",
     )
     split_by_category_ui = mo.ui.checkbox(label="Split by category", value=False)
+    ignore_disagree_ui = mo.ui.checkbox(
+        label="Ignore pairs where models disagree", value=False
+    )
     controls_2 = mo.vstack(
         [
             mo.hstack([sim_metric_ui, sim_task_ui, sim_pred_ui]),
-            mo.hstack([clf_metric_ui, split_by_category_ui]),
+            mo.hstack([clf_metric_ui, split_by_category_ui, ignore_disagree_ui]),
         ]
     )
     return (
         clf_metric_ui,
         controls_2,
+        ignore_disagree_ui,
         sim_metric_ui,
         sim_pred_ui,
         sim_task_ui,
@@ -2143,8 +2168,10 @@ def _(
     controls_1,
     controls_2,
     f1_score,
+    ignore_disagree_ui,
     mo,
     np,
+    pd,
     plt,
     sim_df,
     sim_metric_ui,
@@ -2178,62 +2205,191 @@ def _(
         "Balanced Accuracy": lambda y, p: balanced_accuracy_score(y, p),
     }
 
-    _vals = sim_df[_sim_col].values
-    _thresholds = np.linspace(_vals.min(), _vals.max(), 150)
+    _n_total = len(sim_df)
+    _sorted_df = sim_df.sort_values(_sim_col, ascending=False)
+
+    if ignore_disagree_ui.value:
+        _pool_df = _sorted_df[_sorted_df["pred_1"] == _sorted_df["pred_2"]]
+        _always_df = _sorted_df[_sorted_df["pred_1"] != _sorted_df["pred_2"]]
+    else:
+        _pool_df = _sorted_df
+        _always_df = _sorted_df.iloc[0:0]
+
+    _n_pool = len(_pool_df)
+    _n_always = len(_always_df)
+    _coverage_floor = _n_always / _n_total if _n_total else 0.0
+    _coverage_grid = np.linspace(_coverage_floor, 1.0, 150)
+    _always_label_all = _always_df[_label_col].to_numpy()
+    _always_pred_all = _always_df[_pred_col].to_numpy()
 
     _task_label = "Cancer (BI-RADS)" if _label_col == "y1_label" else "Density"
     _pred_label = sim_model_1.value if _pred_col == "pred_1" else sim_model_2.value
+
+    def _class_name(c):
+        return f"BI-{int(c) + 1}" if _label_col == "y1_label" else f"Density {int(c)}"
+
+    def _half_violin(ax, data, x, side, color, max_half_width, share):
+        # share: this half's sample count as a fraction of the group's total (both halves).
+        # Returns False (draws nothing) if there are too few points for a meaningful KDE.
+        if len(data) < 2 or np.std(data) == 0:
+            return False
+        _half_w = max(max_half_width * share, 0.03)
+        _parts = ax.violinplot(
+            [data], positions=[x], widths=_half_w * 2, showextrema=False
+        )
+        for _body in _parts["bodies"]:
+            _verts = _body.get_paths()[0].vertices
+            _verts[:, 0] = (
+                np.minimum(_verts[:, 0], x)
+                if side == "left"
+                else np.maximum(_verts[:, 0], x)
+            )
+            _body.set_facecolor(color)
+            _body.set_alpha(0.75)
+        _mean = float(np.mean(data))
+        _mean_x = (x - _half_w, x) if side == "left" else (x, x + _half_w)
+        ax.plot(
+            _mean_x,
+            [_mean, _mean],
+            color="black",
+            linewidth=1.6,
+            solid_capstyle="butt",
+            zorder=5,
+        )
+        return True
+
+    _correct_mask_all = (sim_df[_pred_col] == sim_df[_label_col]).to_numpy()
+    _vals_all = sim_df[_sim_col].to_numpy()
+
+    _violin_groups = [("Overall", np.ones(len(sim_df), dtype=bool))]
+    for _c in _all_labels:
+        _violin_groups.append((_class_name(_c), (sim_df[_label_col] == _c).to_numpy()))
+
+    _correct_color, _incorrect_color = "#2E86AB", "#E76F51"
+    _max_half_width = 0.47
+
+    _violin_fig, _violin_ax = plt.subplots(
+        figsize=(2.2 + 1.2 * len(_violin_groups), 4.2)
+    )
+
+    _xticks, _xticklabels = [], []
+    for _gi, (_gname, _gmask) in enumerate(_violin_groups):
+        _gx = _gi
+        _correct_vals = _vals_all[_gmask & _correct_mask_all]
+        _incorrect_vals = _vals_all[_gmask & ~_correct_mask_all]
+        _n_correct, _n_incorrect = len(_correct_vals), len(_incorrect_vals)
+        _n_group = _n_correct + _n_incorrect
+        _correct_share = _n_correct / _n_group if _n_group else 0.0
+        _incorrect_share = 1.0 - _correct_share
+
+        _drew_left = _half_violin(
+            _violin_ax,
+            _correct_vals,
+            _gx,
+            "left",
+            _correct_color,
+            _max_half_width,
+            _correct_share if _n_incorrect >= 2 else 1.0,
+        )
+        _drew_right = _half_violin(
+            _violin_ax,
+            _incorrect_vals,
+            _gx,
+            "right",
+            _incorrect_color,
+            _max_half_width,
+            _incorrect_share if _n_correct >= 2 else 1.0,
+        )
+        _violin_ax.axvline(_gx, color="gray", linewidth=0.6, alpha=0.4, zorder=0)
+
+        _label_extra = ""
+        if not (_drew_left and _drew_right):
+            _label_extra = f"\n(n={_n_group}, {_n_incorrect} incorrect)"
+        _xticks.append(_gx)
+        _xticklabels.append(f"{_gname}{_label_extra}")
+
+    _violin_ax.set_xticks(_xticks)
+    _violin_ax.set_xticklabels(_xticklabels, fontsize=8)
+    _violin_ax.set_ylabel(_sim_col, fontsize=11)
+    _violin_ax.set_title(
+        f"{_sim_col} distribution — Correct (left) vs Incorrect (right)", fontsize=10
+    )
+    _violin_ax.grid(axis="y", alpha=0.3)
+
+    from matplotlib.lines import Line2D as _Line2D
+    from matplotlib.patches import Patch as _Patch
+
+    _violin_ax.legend(
+        handles=[
+            _Patch(facecolor=_correct_color, alpha=0.75, label="Correct"),
+            _Patch(facecolor=_incorrect_color, alpha=0.75, label="Incorrect"),
+            _Line2D([0], [0], color="black", linewidth=1.6, label="Mean"),
+        ],
+        loc="upper right",
+        fontsize=8,
+    )
+    plt.tight_layout()
 
     if split_by_category_ui.value:
         _score_fn = _score_fns["Accuracy"]
         _clf_label = "Accuracy"
 
-        def _class_name(c):
-            return (
-                f"BI-{int(c) + 1}" if _label_col == "y1_label" else f"Density {int(c)}"
-            )
-
         _colors = plt.cm.tab10.colors
+        _class_totals = {
+            _c: int((sim_df[_label_col] == _c).sum()) for _c in _all_labels
+        }
+        _per_class_x = {_c: [] for _c in _all_labels}
+        _per_class_scores = {_c: [] for _c in _all_labels}
+        _per_class_coverages = {_c: [] for _c in _all_labels}
+
+        for _cov in _coverage_grid:
+            _k = int(round((_cov - _coverage_floor) * _n_total))
+            _k = max(0, min(_k, _n_pool))
+            _eval_df = pd.concat([_always_df, _pool_df.iloc[:_k]])
+            for _c in _all_labels:
+                _cls_sub = _eval_df[_eval_df[_label_col] == _c]
+                _n_sub = len(_cls_sub)
+                if _n_sub < 2:
+                    continue
+                _per_class_x[_c].append((_n_always + _k) / _n_total)
+                _per_class_scores[_c].append(
+                    _score_fn(_cls_sub[_label_col], _cls_sub[_pred_col])
+                )
+                _per_class_coverages[_c].append(_n_sub / _class_totals[_c])
 
         _fig, (_ax1, _ax2) = plt.subplots(1, 2, figsize=(15, 5.5))
 
         for _i, _c in enumerate(_all_labels):
             _color = _colors[_i % len(_colors)]
-            _class_mask = sim_df[_label_col] == _c
-            _n_class = int(_class_mask.sum())
-            _class_scores, _class_coverages, _class_thresholds = [], [], []
-            for _t in _thresholds:
-                _sub_mask = _class_mask & (sim_df[_sim_col] >= _t)
-                _n_sub = int(_sub_mask.sum())
-                if _n_sub < 2:
-                    continue
-                _sub = sim_df[_sub_mask]
-                _class_scores.append(_score_fn(_sub[_label_col], _sub[_pred_col]))
-                _class_coverages.append(_n_sub / _n_class)
-                _class_thresholds.append(_t)
-            _line_label = f"{_class_name(_c)} (n={_n_class})"
+            _line_label = f"{_class_name(_c)} (n={_class_totals[_c]})"
             _ax1.plot(
-                _class_thresholds,
-                _class_scores,
+                _per_class_x[_c],
+                _per_class_scores[_c],
                 linewidth=2,
                 color=_color,
                 label=_line_label,
             )
             _ax2.plot(
-                _class_thresholds,
-                _class_coverages,
+                _per_class_x[_c],
+                _per_class_coverages[_c],
                 linewidth=2,
                 color=_color,
                 label=_line_label,
             )
 
-        _ax1.set_xlabel(f"{_sim_col} threshold", fontsize=12)
+        _ax1.invert_xaxis()
+        _ax1.set_xlabel(
+            "Coverage (fraction of samples retained, ranked by similarity)", fontsize=12
+        )
         _ax1.set_ylabel(_clf_label, fontsize=11)
         _ax1.set_title("Accuracy per true class", fontsize=11)
         _ax1.grid(alpha=0.3)
         _ax1.legend(fontsize=8, loc="best")
 
-        _ax2.set_xlabel(f"{_sim_col} threshold", fontsize=12)
+        _ax2.invert_xaxis()
+        _ax2.set_xlabel(
+            "Coverage (fraction of samples retained, ranked by similarity)", fontsize=12
+        )
         _ax2.set_ylabel("Coverage within class", fontsize=10)
         _ax2.set_title(
             "Coverage per true class (fraction of that class's samples retained)",
@@ -2243,47 +2399,76 @@ def _(
         _ax2.legend(fontsize=8, loc="best")
 
         _fig.suptitle(
-            f"Accuracy vs {_sim_col} threshold, split by true class — {_task_label} | "
+            f"Accuracy vs Coverage, split by true class — {_task_label} | "
             f"Preds: {_pred_label}\ntarget={sim_target_ui.value} | "
             f"{sim_model_1.value} vs {sim_model_2.value}",
             fontsize=11,
         )
         plt.tight_layout()
 
-        _note = mo.md(
-            '_Metric fixed to **Accuracy** while "Split by category" is active — F1/Balanced '
-            "Accuracy aren't well-defined within a single true-class subset (no cross-class "
-            "negatives to compute precision/specificity against)._"
+        _notes = [
+            mo.md(
+                '_Metric fixed to **Accuracy** while "Split by category" is active — F1/Balanced '
+                "Accuracy aren't well-defined within a single true-class subset (no cross-class "
+                "negatives to compute precision/specificity against). Coverage on the x-axis is a "
+                "single global similarity ranking applied across all classes together, so it's "
+                "exactly linear by construction; the right panel shows how unevenly each class is "
+                "retained at a given global cutoff._"
+            )
+        ]
+        if ignore_disagree_ui.value:
+            _notes.append(
+                mo.md(
+                    f"_Ignoring disagreement pairs: **{_n_always}** of **{_n_total}** samples "
+                    f"always stay included; only the **{_n_pool}** agreement samples are ranked "
+                    "by the global cutoff._"
+                )
+            )
+        _out = mo.vstack(
+            [controls_1, controls_2] + _notes + [mo.hstack([_fig, _violin_fig], gap=1)]
         )
-        _out = mo.vstack([controls_1, controls_2, _note, _fig])
     else:
         _score_fn = _score_fns[clf_metric_ui.value]
         _clf_label = clf_metric_ui.value
 
-        _scores, _coverages = [], []
-        for _t in _thresholds:
-            _mask = sim_df[_sim_col] >= _t
-            _sub = sim_df[_mask]
-            if len(_sub) < 2:
+        _scores, _coverages, _raw_thresholds = [], [], []
+        for _c in _coverage_grid:
+            _k = int(round((_c - _coverage_floor) * _n_total))
+            _k = max(0, min(_k, _n_pool))
+            _pool_k = _pool_df.iloc[:_k]
+            _eval_label = np.concatenate(
+                [_always_label_all, _pool_k[_label_col].to_numpy()]
+            )
+            _eval_pred = np.concatenate(
+                [_always_pred_all, _pool_k[_pred_col].to_numpy()]
+            )
+            if len(_eval_label) < 2:
                 continue
-            _scores.append(_score_fn(_sub[_label_col], _sub[_pred_col]))
-            _coverages.append(_mask.mean())
-        _thresholds_agg = _thresholds[: len(_scores)]
+            _scores.append(_score_fn(_eval_label, _eval_pred))
+            _coverages.append((_n_always + _k) / _n_total)
+            if _k > 0:
+                _raw_thresholds.append(float(_pool_k[_sim_col].iloc[-1]))
+            elif _n_pool > 0:
+                _raw_thresholds.append(float(_pool_df[_sim_col].iloc[0]))
+            else:
+                _raw_thresholds.append(float(sim_df[_sim_col].max()))
+
+        _cov_arr = np.array(_coverages)
+        _thr_arr = np.array(_raw_thresholds)
+        _order_by_cov = np.argsort(_cov_arr)
+        _cov_sorted, _thr_by_cov = _cov_arr[_order_by_cov], _thr_arr[_order_by_cov]
+        _order_by_thr = np.argsort(_thr_arr)
+        _thr_sorted, _cov_by_thr = _thr_arr[_order_by_thr], _cov_arr[_order_by_thr]
+
+        def _cov_to_thr(cov):
+            return np.interp(cov, _cov_sorted, _thr_by_cov)
+
+        def _thr_to_cov(thr):
+            return np.interp(thr, _thr_sorted, _cov_by_thr)
 
         _fig, _ax1 = plt.subplots(figsize=(10, 5))
-        _ax2 = _ax1.twinx()
 
-        _ax1.plot(
-            _thresholds_agg, _scores, color="steelblue", linewidth=2, label=_clf_label
-        )
-        _ax2.plot(
-            _thresholds_agg,
-            _coverages,
-            color="darkorange",
-            linewidth=2,
-            linestyle="--",
-            label="Coverage",
-        )
+        _ax1.plot(_coverages, _scores, color="steelblue", linewidth=2, label=_clf_label)
 
         _baseline = _score_fn(sim_df[_label_col], sim_df[_pred_col])
         _ax1.axhline(
@@ -2294,25 +2479,42 @@ def _(
             label=f"Baseline = {_baseline:.3f}",
         )
 
-        _ax1.set_xlabel(f"{_sim_col} threshold", fontsize=12)
-        _ax1.set_ylabel(_clf_label, color="steelblue", fontsize=11)
-        _ax2.set_ylabel("Coverage (fraction accepted)", color="darkorange", fontsize=11)
-        _ax1.tick_params(axis="y", labelcolor="steelblue")
-        _ax2.tick_params(axis="y", labelcolor="darkorange")
+        _ax1.invert_xaxis()
+        _ax1.set_xlabel(
+            "Coverage (fraction of samples retained, ranked by similarity)", fontsize=12
+        )
+        _ax1.set_ylabel(_clf_label, fontsize=11)
+        _ax1.legend(loc="center left")
+        _ax1.grid(alpha=0.3)
 
-        _lines1, _labels1 = _ax1.get_legend_handles_labels()
-        _lines2, _labels2 = _ax2.get_legend_handles_labels()
-        _ax1.legend(_lines1 + _lines2, _labels1 + _labels2, loc="center left")
+        _ax_top = _ax1.secondary_xaxis("top", functions=(_cov_to_thr, _thr_to_cov))
+        _ax_top.set_xlabel(f"{_sim_col} threshold (reference)", fontsize=10)
 
-        _title_line1 = f"{_clf_label} vs {_sim_col} threshold — {_task_label} | Preds: {_pred_label}"
+        _title_line1 = (
+            f"{_clf_label} vs Coverage — {_task_label} | Preds: {_pred_label}"
+        )
         _title_line2 = (
             f"target={sim_target_ui.value} | {sim_model_1.value} vs {sim_model_2.value}"
         )
         _ax1.set_title(f"{_title_line1}\n{_title_line2}", fontsize=11)
-        _ax1.grid(alpha=0.3)
         plt.tight_layout()
 
-        _out = mo.vstack([controls_1, controls_2, _fig])
+        _ignore_note = (
+            mo.md(
+                f"_Ignoring disagreement pairs: **{_n_always}** of **{_n_total}** samples "
+                f"({_n_always / _n_total:.0%}) always stay in the evaluated set — coverage can't "
+                "drop below that floor. Only the "
+                f"**{_n_pool}** samples where the two models agree are ranked and potentially "
+                "dropped by the threshold._"
+            )
+            if ignore_disagree_ui.value
+            else None
+        )
+        _out = mo.vstack(
+            [controls_1, controls_2]
+            + ([_ignore_note] if _ignore_note is not None else [])
+            + [mo.hstack([_fig, _violin_fig], gap=1)]
+        )
 
     _out
     return
@@ -2335,11 +2537,14 @@ def _(mo):
     yielding **one similarity value per class** for each image (e.g. 5 values for 5 classes).
 
     The abstention figure then **aggregates** those per-class similarities into a single score —
-    choose `mean`, `max`, `min`, `std`, `median`, or `range` — and sweeps a threshold over it to
-    trade classification performance against coverage. For agreement-style aggregations
-    (mean/max/min/median) higher means the models attend more alike, so accept **above** the
-    threshold; for dispersion aggregations (std/range) lower means more agreement, so accept
-    **below**. The direction is set with the manual toggle.
+    choose `mean`, `max`, `min`, `std`, `median`, or `range` over all classes, one of the
+    **predicted-pair** variants (`mean`/`max`/`min` over just the class(es) predicted by Model A
+    and Model B — one value if they agree, two if they disagree), or a single reference class
+    (`predicted class (Model A)` / `true class`) — and sweeps a threshold over it to trade
+    classification performance against coverage. For agreement-style aggregations (mean/max/min
+    over all classes or over the predicted pair, plus median) higher means the models attend more
+    alike, so accept **above** the threshold; for dispersion aggregations (std/range) lower means
+    more agreement, so accept **below**. The direction is set with the manual toggle.
 
     The full-test computation is expensive, so results are cached to disk and reloaded on reruns.
     """)
@@ -2469,6 +2674,9 @@ def _(mo):
             "std",
             "median",
             "range",
+            "mean (predicted pair)",
+            "max (predicted pair)",
+            "min (predicted pair)",
             "predicted class (Model A)",
             "true class",
         ],
@@ -2532,6 +2740,15 @@ def _(
     _per_class = allsim_df[_class_cols].to_numpy()
     _rows_idx = np.arange(len(_per_class))
 
+    # Predicted-pair indices: the class(es) predicted by Model A / Model B for each image.
+    # When both models predict the same class, the two lookups below hit the same column, so
+    # mean/max/min over the pair naturally collapse onto that single value.
+    _pred_1_idx = allsim_df["pred_1"].to_numpy().clip(0, num_classes - 1)
+    _pred_2_idx = allsim_df["pred_2"].to_numpy().clip(0, num_classes - 1)
+    _pred_pair_vals = np.stack(
+        [_per_class[_rows_idx, _pred_1_idx], _per_class[_rows_idx, _pred_2_idx]], axis=1
+    )
+
     _agg_fns = {
         "mean": lambda a: a.mean(axis=1),
         "max": lambda a: a.max(axis=1),
@@ -2539,11 +2756,12 @@ def _(
         "std": lambda a: a.std(axis=1),
         "median": lambda a: np.median(a, axis=1),
         "range": lambda a: a.max(axis=1) - a.min(axis=1),
+        "mean (predicted pair)": lambda a: _pred_pair_vals.mean(axis=1),
+        "max (predicted pair)": lambda a: _pred_pair_vals.max(axis=1),
+        "min (predicted pair)": lambda a: _pred_pair_vals.min(axis=1),
         # Pick the single class-map similarity that matches a reference class per image,
         # replicating the previous section's "pred_a" / "true" target variants.
-        "predicted class (Model A)": lambda a: a[
-            _rows_idx, allsim_df["pred_1"].to_numpy().clip(0, num_classes - 1)
-        ],
+        "predicted class (Model A)": lambda a: a[_rows_idx, _pred_1_idx],
         "true class": lambda a: a[
             _rows_idx, allsim_df["y1_label"].to_numpy().clip(0, num_classes - 1)
         ],
@@ -2568,28 +2786,43 @@ def _(
     _y_true = allsim_df[_label_col].to_numpy()
     _y_pred = allsim_df[_pred_col].to_numpy()
 
-    _thresholds = np.linspace(_agg_score.min(), _agg_score.max(), 150)
-    _scores, _coverages = [], []
-    for _t in _thresholds:
-        _mask = _agg_score >= _t if _accept_above else _agg_score <= _t
-        if _mask.sum() < 2:
+    _n_total = len(_agg_score)
+    if _accept_above:
+        _order = np.argsort(-_agg_score)  # highest agreement score first
+    else:
+        _order = np.argsort(
+            _agg_score
+        )  # lowest agreement score first (dispersion metrics)
+    _sorted_agg = _agg_score[_order]
+    _sorted_y_true = _y_true[_order]
+    _sorted_y_pred = _y_pred[_order]
+
+    _coverage_grid = np.linspace(1.0 / _n_total, 1.0, 150)
+    _scores, _coverages, _raw_thresholds = [], [], []
+    for _cov in _coverage_grid:
+        _k = int(round(_cov * _n_total))
+        if _k < 2:
             continue
-        _scores.append(_score_fn(_y_true[_mask], _y_pred[_mask]))
-        _coverages.append(_mask.mean())
-    _thresholds = _thresholds[: len(_scores)]
+        _scores.append(_score_fn(_sorted_y_true[:_k], _sorted_y_pred[:_k]))
+        _coverages.append(_k / _n_total)
+        _raw_thresholds.append(float(_sorted_agg[_k - 1]))
+
+    _cov_arr = np.array(_coverages)
+    _thr_arr = np.array(_raw_thresholds)
+    _order_by_cov = np.argsort(_cov_arr)
+    _cov_sorted, _thr_by_cov = _cov_arr[_order_by_cov], _thr_arr[_order_by_cov]
+    _order_by_thr = np.argsort(_thr_arr)
+    _thr_sorted, _cov_by_thr = _thr_arr[_order_by_thr], _cov_arr[_order_by_thr]
+
+    def _cov_to_thr(cov):
+        return np.interp(cov, _cov_sorted, _thr_by_cov)
+
+    def _thr_to_cov(thr):
+        return np.interp(thr, _thr_sorted, _cov_by_thr)
 
     _fig, _ax1 = plt.subplots(figsize=(10, 5))
-    _ax2 = _ax1.twinx()
 
-    _ax1.plot(_thresholds, _scores, color="steelblue", linewidth=2, label=_clf_label)
-    _ax2.plot(
-        _thresholds,
-        _coverages,
-        color="darkorange",
-        linewidth=2,
-        linestyle="--",
-        label="Coverage",
-    )
+    _ax1.plot(_coverages, _scores, color="steelblue", linewidth=2, label=_clf_label)
 
     _baseline = _score_fn(_y_true, _y_pred)
     _ax1.axhline(
@@ -2600,26 +2833,27 @@ def _(
         label=f"Baseline = {_baseline:.3f}",
     )
 
-    _direction_word = "≥" if _accept_above else "≤"
+    _ax1.invert_xaxis()
     _ax1.set_xlabel(
-        f"{_agg}({_metric}) threshold (accept {_direction_word} t)", fontsize=12
+        "Coverage (fraction of samples retained, ranked by agreement)", fontsize=12
     )
-    _ax1.set_ylabel(_clf_label, color="steelblue", fontsize=11)
-    _ax2.set_ylabel("Coverage (fraction accepted)", color="darkorange", fontsize=11)
-    _ax1.tick_params(axis="y", labelcolor="steelblue")
-    _ax2.tick_params(axis="y", labelcolor="darkorange")
+    _ax1.set_ylabel(_clf_label, fontsize=11)
+    _ax1.legend(loc="lower left")
+    _ax1.grid(alpha=0.3)
 
-    _lines1, _labels1 = _ax1.get_legend_handles_labels()
-    _lines2, _labels2 = _ax2.get_legend_handles_labels()
-    _ax1.legend(_lines1 + _lines2, _labels1 + _labels2, loc="lower left")
+    _direction_word = "≥" if _accept_above else "≤"
+    _ax_top = _ax1.secondary_xaxis("top", functions=(_cov_to_thr, _thr_to_cov))
+    _ax_top.set_xlabel(
+        f"{_agg}({_metric}) threshold (reference, accept {_direction_word} t)",
+        fontsize=10,
+    )
 
     _pred_label = (
         "cancer original" if _pred_col == "pred_1" else "cancer ajive individual"
     )
-    _title_line1 = f"{_clf_label} vs {_agg}({_metric}) threshold — Cancer (BI-RADS) | Preds: {_pred_label}"
+    _title_line1 = f"{_clf_label} vs Coverage — Cancer (BI-RADS) | Preds: {_pred_label}"
     _title_line2 = "all-class similarity | cancer original vs cancer ajive individual"
     _ax1.set_title(f"{_title_line1}\n{_title_line2}", fontsize=11)
-    _ax1.grid(alpha=0.3)
     plt.tight_layout()
     mo.vstack([allsim_controls, _fig])
     return

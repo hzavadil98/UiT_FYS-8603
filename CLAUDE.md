@@ -7,8 +7,10 @@ This is a research project applying **AJIVE** (Angle-based Joint and Individual 
 | File / dir | Purpose | Status |
 |---|---|---|
 | `test_vin.py` | Main marimo notebook — VinDR AJIVE analysis, Grad-CAM, localization | **Primary** |
-| `train_1vf.py` | Train single-view ResNet on VinDR (CC or MLO) | Active |
-| `train_heads.py` | Train AJIVE classification heads | Active |
+| `test_vin_binary.py` | Same analysis for binary cancer (BI-RADS 1–2 vs 3–5) + ROC-AUC/sens/spec; cache `saved_features/vinDr_annot_binary` | Active |
+| `train_1vf.py` | Train single-view ResNet on VinDR; `--task`, `--cancer-label-type`, `--smoke` | Active |
+| `extract_features.py` | Cache cancer+density ResNet features (`all_data_{split}.pt`) for AJIVE | Active |
+| `train_heads.py` | Fit AJIVE + train heads; `--cancer-ckpt`, `--feature-dir`, `--cancer-label-type`, `--ranks`, `--smoke` | Active |
 | `AJIVE_cancer+density.ipynb` | AJIVE: cancer vs density, single view | Reference |
 | `AJIVE_CC+MLO_cancer.ipynb` | AJIVE: CC vs MLO views, cancer task | Reference |
 | `vinDR_annot.ipynb`, `vinDR_gradCam.ipynb` | Earlier VinDR annotation and saliency analysis | Reference |
@@ -63,6 +65,8 @@ model.load_state_dict(checkpoint["state_dict"])
 | `artifacts/model-kb9kz79s:v0/model.ckpt` | Density `Single_view_model` (VinDR) |
 | `artifacts/model-x541jdxj:v0/model.ckpt` | Cancer `Single_view_AJIVE_heads` (VinDR, Lightning) |
 | `artifacts/model-ngta50dn:v0/model.ckpt` | Density `Single_view_AJIVE_heads` (VinDR, Lightning) |
+| `artifacts/<TBD>/model.ckpt` | Binary cancer `Single_view_model` (VinDR) |
+| `artifacts/<TBD>/model.ckpt` | Binary cancer / density `Single_view_AJIVE_heads` (AJIVE fit on binary features) |
 | `artifacts/model-908ij4rg:v0/model.ckpt` | Shape `Single_view_model` (Elements) |
 | `artifacts/model-qtzv9eop:v0/model.ckpt` | Texture `Single_view_model` (Elements) |
 | `artifacts/shape_all_heads.pt` | Shape AJIVE heads (Elements, plain `.pt`) |
