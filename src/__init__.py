@@ -7,7 +7,6 @@ __all__ = [
     "Two_view_model",
     "Breast_Cancer_Dataloader",
     "TwoViewCNN",
-    "Synthetic_2v_Dataloader",
     "Single_Element_Dataloader",
     #    "Mirai_two_view_model",
     "Single_view_model",
@@ -17,7 +16,6 @@ __all__ = [
 from .Dataloaders.Breast_Cancer import Breast_Cancer_Dataloader
 from .Dataloaders.Patient_Cancer import Patient_Cancer_Dataloader
 from .Dataloaders.single_element import Single_Element_Dataloader
-from .Dataloaders.Synthetic_2v import Synthetic_2v_Dataloader
 from .Dataloaders.View_Cancer import View_Cancer_Dataloader
 
 # from .Models.mirai_pretrained import Mirai_two_view_model
